@@ -262,7 +262,7 @@ else:
 pf = ParticleFilter(
     num_particles=100,
     initial_multiplier=50,
-    sensor_range=100,
+    sensor_range=45,
     sensor_noise=1.0,
     motion_noise=0.5,
 )

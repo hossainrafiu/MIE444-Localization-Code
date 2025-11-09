@@ -307,10 +307,10 @@ class ParticleFilter:
             p = predicted[i]
             a = actual[i]
             # print(f"Predicted: {p}, Actual: {a}")
-            if abs(p - a) > 6:
-                return 0.0  # Discard particles with large errors
             if a == -1 or p == -1:
                 continue
+            if abs(p - a) > 6:
+                return 0.0  # Discard particles with large errors
             # Use Gaussian probability density
             error = abs(p - a)
             weight *= np.exp(-(error**2) / (2 * self.sensor_noise**2))
