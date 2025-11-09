@@ -222,14 +222,40 @@ def validate_responses(cmd_list: list, responses_list: list):
 def cordsToGrid(x: float, y: float, theta: float) -> tuple:
     """Convert real-world coordinates to grid coordinates and orientation."""
     # Assuming each grid cell is 12x12 inches and the origin (0,0) is at the center of cell (0,0)
-    col = int(x // 12)
-    row = int(y // 12)
-
-    # Convert theta (radians) to orientation index (0: right, 1: up, 2: left, 3: down)
-    orientation = int((theta % (2 * math.pi)) / (math.pi / 2)) % 4
-    # Convert to (0: up, 1: right, 2: down, 3: left)
-    orientation_map = {0: 1, 1: 0, 2: 3, 3: 2}
-    orientation = orientation_map[orientation]
+    col, row, orientation = 0, 0, 0
+    if x >= 0 and x < 12 :
+        col = 0
+    elif x >=12 and x < 24 :
+        col = 1
+    elif x >=24 and x < 36 :
+        col = 2
+    elif x >=36 and x < 48 :
+        col = 3
+    elif x >=48 and x < 60 :
+        col = 4
+    elif x >=60 and x < 72 :
+        col = 5
+    elif x >=72 and x < 84 :
+        col = 6
+    elif x >=84 and x < 96 :
+        col = 7
+    if y >= 0 and y < 12 :
+        row = 3
+    elif y >= 12 and y < 24 :
+        row = 2
+    elif y >= 24 and y < 36 :
+        row = 1
+    elif y >= 36 and y < 48 :
+        row = 0
+    theta = theta % (2 * math.pi)
+    if (theta >= 7*math.pi/4 and theta < 2*math.pi) or (theta >= 0 and theta < math.pi/4):
+        orientation = 1
+    elif theta >= math.pi/4 and theta < 3*math.pi/4:
+        orientation = 0
+    elif theta >= 3*math.pi/4 and theta < 5*math.pi/4:
+        orientation = 3
+    elif theta >= 5*math.pi/4 and theta < 7*math.pi/4:
+        orientation = 2
 
     return (col, row, orientation)
 
@@ -251,8 +277,8 @@ PORT_RX = 61201  # The port used by the *CLIENT* to send data
 
 ### Serial Setup ###
 BAUDRATE = 9600  # Baudrate in bps
-PORT_SERIAL = "COM3"  # COM port identification
-TIMEOUT_SERIAL = 1  # Serial port timeout, in seconds
+PORT_SERIAL = "COM8"  # COM port identification
+TIMEOUT_SERIAL = 2  # Serial port timeout, in seconds
 
 ### Packet Framing values ###
 FRAMESTART = "["
@@ -271,6 +297,7 @@ else:
     SOURCE = "serial device " + PORT_SERIAL
 try:
     SER = serial.Serial(PORT_SERIAL, BAUDRATE, timeout=TIMEOUT_SERIAL)
+    print(f"Connected to {SOURCE} at {BAUDRATE} bps.")
 except serial.SerialException:
     print(
         f"Serial connection was refused.\nEnsure {PORT_SERIAL} is the correct port and nothing else is connected to it."
@@ -288,7 +315,7 @@ else:
 pf = ParticleFilter(
     num_particles=100,
     initial_multiplier=50,
-    sensor_range=45,
+    sensor_range=20,
     sensor_noise=1.0,
     motion_noise=0.5,
 )
@@ -309,25 +336,32 @@ plt.ion()
 plt.show()
 plt.pause(2)
 
+# Ping Sensors
+raw_cmd = "p"
+packet_tx = packetize(raw_cmd)
+if packet_tx:
+    transmit(packet_tx)
 while True:
-    # Ping Sensors
-    raw_cmd = "p"
-    packet_tx = packetize(raw_cmd)
-    if packet_tx:
-        transmit(packet_tx)
     [responses, time_rx] = receive()
-    print(f"Sensor Ping Responses at {time_rx}: {responses}")
-    last_sensor_readings = [
-        float(responses[i]) + 2.5 for i in range(len(responses) - 1)
-    ]
-    current_frontend = responses[-1]
+    if responses[0] == raw_cmd:
+        continue
+    if responses[0] == "+" or responses[0] is not False:
+        break
+print(f"Sensor Ping Responses at {time_rx}: {responses}")
+last_sensor_readings = [
+    float(responses[i]) + 2.5 for i in range(len(responses) - 1)
+]
+current_frontend = int(responses[-1])
 
+while True:
     # Pathfinding
     x, y, theta = pf.estimate_position()
     confidence = pf.get_confidence()
+    print(f"Estimated Position: x={x}, y={y}, theta={theta}, confidence={confidence}")
 
     if confidence > 50:
         current_c, current_r, current_ori = cordsToGrid(x, y, theta)
+        print(f"Grid Position: row={current_r}, col={current_c}, ori={current_ori}")
         target_rc = goal_from_state(
             with_load, load_pick_up_location, unload_drop_off_location
         )
@@ -340,32 +374,35 @@ while True:
             pickup=load_pick_up_location,
             dropoff=unload_drop_off_location,
         )
+        print(f"Next action: {action}")
+        print(path)
     else:
         action = ""
+        
 
     if action == "":
         print(
             "Warning: Low confidence in current position estimate. Just move forward."
         )
-        raw_cmd = "w"
+        raw_cmd = "f"
     if action == "forward":
         if current_frontend == 0:
-            raw_cmd = "w"
+            raw_cmd = "f"
         else:
             raw_cmd = "r0"
     if action == "right":
         if current_frontend == 1:
-            raw_cmd = "w"
+            raw_cmd = "f"
         else:
             raw_cmd = "r1"
     if action == "backward":
         if current_frontend == 2:
-            raw_cmd = "w"
+            raw_cmd = "f"
         else:
             raw_cmd = "r2"
     if action == "left":
         if current_frontend == 3:
-            raw_cmd = "w"
+            raw_cmd = "f"
         else:
             raw_cmd = "r3"
     if action == "wait":
@@ -380,20 +417,25 @@ while True:
         transmit(packet_tx)
 
     # Receive the response
-    [responses, time_rx] = receive()
+    while True:
+        [responses, time_rx] = receive()
+        if responses[0] == raw_cmd:
+            continue
+        if responses[0] == "+" or responses[0] is not False:
+            break
     print(f"Command Response at {time_rx}: {responses}")
 
-    time.sleep(0.5)  # Wait a bit before requesting all sensor readings
+    time.sleep(1)  # Wait a bit before requesting all sensor readings
 
     ############### Particle Filter Update ##############
 
-    if raw_cmd == "w":
-        delta_x = 3 if current_frontend == 0 else -3 if current_frontend == 2 else 0
+    if raw_cmd == "f":
+        delta_x = 1 if current_frontend == 0 else -1 if current_frontend == 2 else 0
     else:
         delta_x = 0
 
-    if raw_cmd == "w":
-        delta_y = 3 if current_frontend == 1 else -3 if current_frontend == 3 else 0
+    if raw_cmd == "f":
+        delta_y = -1 if current_frontend == 1 else 1 if current_frontend == 3 else 0
     else:
         delta_y = 0
 
@@ -421,22 +463,56 @@ while True:
     pf.plot_particles(ax)
     pf.plot_estimated_position(ax, estimated_pos)
     plt.show()
-    plt.pause(2)
+    plt.pause(1)
     
     # Ping Sensors
     raw_cmd = "p"
     packet_tx = packetize(raw_cmd)
     if packet_tx:
         transmit(packet_tx)
-    [responses, time_rx] = receive()
+    while True:
+        [responses, time_rx] = receive()
+        if responses[0] == raw_cmd:
+            continue
+        if responses[0] == "+" or responses[0] is not False:
+            break
     print(f"Sensor Ping Responses at {time_rx}: {responses}")
-    last_sensor_readings = [
-        float(responses[i]) + 2.5 for i in range(len(responses) - 1)
-    ]
+    major_change_detected = []
+    for i in range(len(responses) - 1):
+        if abs(float(responses[i])/25.4 - last_sensor_readings[i]) > 5.0 and last_sensor_readings[i] != 0:
+            major_change_detected.append(i)
+        last_sensor_readings[i] = float(responses[i])/25.4 + 3.0
     current_frontend = responses[-1]
+    
+    if major_change_detected:
+        print(f"Major change detected on sensors: {major_change_detected}")
+        # send forward commands to avoid wall edge
+        for _ in range(len(major_change_detected)):
+            raw_cmd = "f"
+            packet_tx = packetize(raw_cmd)
+            if packet_tx:
+                transmit(packet_tx)
+            while True:
+                [responses, time_rx] = receive()
+                if responses[0] == raw_cmd:
+                    continue
+                if responses[0] == "+" or responses[0] is not False:
+                    break
+            print(f"Command Response at {time_rx}: {responses}")
+            pf.move_particles(1 if current_frontend == 0 else -1 if current_frontend == 2 else 0,
+                              -1 if current_frontend == 1 else 1 if current_frontend == 3 else 0,
+                              0)
+            # pf.move_particles_improved(1 if current_frontend == 0 else -1 if current_frontend == 2 else 0,
+            #                   -1 if current_frontend == 1 else 1 if current_frontend == 3 else 0,
+            #                   0)
 
     sensor_readings = shift_sensor_readings(last_sensor_readings, current_frontend) if not omnidrive_mode else last_sensor_readings
     print(sensor_readings)
+
+    # Swap sensor readings 1 and 3 for correct orientation
+    sensor_readings[1], sensor_readings[3] = sensor_readings[3], sensor_readings[1]
+    
+    print(f"Sensor readings (inches): {sensor_readings}")
 
     # Particle Filter Update
     pf.update_weights_improved(sensor_readings)
@@ -448,7 +524,7 @@ while True:
     pf.plot_particles(ax)
     pf.plot_estimated_position(ax, estimated_pos)
     plt.show()
-    plt.pause(2)
+    plt.pause(1)
 
     # pf.resample_particles()
     pf.resample_particles_improved()

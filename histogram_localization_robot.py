@@ -325,7 +325,7 @@ while True:
     current_r, current_c, current_ori = localizer.get_most_likely_position()
     position_prob = localizer.get_position_probability(current_r, current_c)
 
-    if position_prob > 0.2:
+    if position_prob > 0.4:
         target_rc = goal_from_state(
             with_load, load_pick_up_location, unload_drop_off_location
         )
@@ -386,11 +386,11 @@ while True:
     ############### Histogram Localization Update ##############
 
     # Update motion steps and perform prediction step if necessary
+    if last_sensor_readings[0] != 0 and last_sensor_readings[0] < 70:
+        motionSteps = 8  # Force an update if an obstacle is detected close ahead
     if action == "w":
         motionSteps += 1
-    if action in ["r0", "r1", "r2", "r3"]:
-        motionSteps = 0  # Reset motion steps on rotation
-    if motionSteps >= 4:
+    if motionSteps >= 8:
         observed_block_type = block_type_detected(last_sensor_readings)
         localizer.update_belief(observed_block_type)
         localizer.predict_motion(action)

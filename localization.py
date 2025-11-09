@@ -307,7 +307,7 @@ class ParticleFilter:
             p = predicted[i]
             a = actual[i]
             # print(f"Predicted: {p}, Actual: {a}")
-            if (a == -1 or p == -1):
+            if (a > self.sensor_range and p == -1):
                 continue
             if abs(p - a) > 6:
                 return 0.0  # Discard particles with large errors
@@ -346,8 +346,8 @@ class ParticleFilter:
                 p = self.particles[idx]
                 new_particles.append(
                     Particle(
-                        p.x + np.random.normal(0, 0.5),
-                        p.y + np.random.normal(0, 0.5),
+                        p.x + np.random.normal(0, 1),
+                        p.y + np.random.normal(0, 1),
                         p.theta + np.random.normal(0, 0.1),
                         1.0 / self.num_particles,
                     )
