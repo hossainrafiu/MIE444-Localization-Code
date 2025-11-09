@@ -64,14 +64,14 @@ robot_height = 6  # Robot height in inches
 #                 pm.Vector2( robot_width/2, -robot_width/2)
 #                 ]
 robot_outline = [
-    pm.Vector2(-2.875, 2.75),
-    pm.Vector2(-1.655, 4),
-    pm.Vector2(1.655, 4),
-    pm.Vector2(2.875, 2.75),
-    pm.Vector2(2.875, -2.75),
-    pm.Vector2(1.655, -4),
-    pm.Vector2(-1.655, -4),
-    pm.Vector2(-2.875, -2.75),
+    pm.Vector2(-2.875, 1.655),
+    pm.Vector2(-1.655, 2.875),
+    pm.Vector2(1.655, 2.875),
+    pm.Vector2(2.875, 1.655),
+    pm.Vector2(2.875, -1.655),
+    pm.Vector2(1.655, -2.875),
+    pm.Vector2(-1.655, -2.875),
+    pm.Vector2(-2.875, -1.655),
 ]
 
 # Maze definition information
@@ -111,7 +111,9 @@ block_color = (127, 127, 0)  # Tuple with robot perimeter color in (R,G,B) forma
 # Motors
 m0_info = {"id": "m0", "position": [3.125, 0], "rotation": 0, "visible": True}
 m1_info = {"id": "m1", "position": [-3.125, 0], "rotation": 0, "visible": True}
-motors = {"m0": MotorSimple(m0_info), "m1": MotorSimple(m1_info)}
+m2_info = {"id": "m2", "position": [0, 3.125], "rotation": 90, "visible": True}
+m3_info = {"id": "m3", "position": [0, -3.125], "rotation": 90, "visible": True}
+motors = {"m0": MotorSimple(m0_info), "m1": MotorSimple(m1_info), "m2": MotorSimple(m2_info), "m3":MotorSimple(m3_info)}
 
 # Drives
 w0_info = {
@@ -126,6 +128,30 @@ w0_info = {
     "bias": {"x": 0, "y": 0, "rotation": 0.2},
     "error": {"x": 0.02, "y": 0.05, "rotation": 1},
 }
+w0_info = {
+    "id": "w0",
+    "position": [0, 0],
+    "rotation": 0,
+    "visible": False,
+    "velocity": [0, 6],
+    "ang_velocity": 0,
+    "motors": [motors["m0"], motors["m1"]],
+    "motor_direction": [1, 1],
+    "bias": {"x": 0, "y": 0, "rotation": 0.2},
+    "error": {"x": 0.02, "y": 0.05, "rotation": 1},
+}
+w1_info = {
+    "id": "w1",
+    "position": [0, 0],
+    "rotation": 0,
+    "visible": False,
+    "velocity": [-6, 0],
+    "ang_velocity": 0,
+    "motors": [motors["m2"], motors["m3"]],
+    "motor_direction": [1, 1],
+    "bias": {"x": 0, "y": 0, "rotation": 0.2},
+    "error": {"x": 0.02, "y": 0.05, "rotation": 1},
+}
 r0_info = {
     "id": "r0",
     "position": [0, 0],
@@ -133,12 +159,12 @@ r0_info = {
     "visible": False,
     "velocity": [0, 0],
     "ang_velocity": 120,
-    "motors": [motors["m0"], motors["m1"]],
-    "motor_direction": [1, -1],
+    "motors": [motors["m0"], motors["m1"], motors["m2"], motors["m3"]],
+    "motor_direction": [1, -1, 1, -1],
     "bias": {"x": 0, "y": 0, "rotation": 0.01},
     "error": {"x": 0.003, "y": 0.003, "rotation": 0.02},
 }
-drives = {"w0": Drive(w0_info), "r0": Drive(r0_info)}
+drives = {"w0": Drive(w0_info), "w1": Drive(w1_info), "r0": Drive(r0_info)}
 
 # Sensors
 u0_info = {
@@ -147,6 +173,7 @@ u0_info = {
     "height": 5,
     "rotation": 0,
     "error": 0.02,
+    "beamwidth": 0,
     "outline": [
         pm.Vector2(-1, -0.5),
         pm.Vector2(-1, 0.5),
@@ -162,6 +189,7 @@ u1_info = {
     "height": 5,
     "rotation": -90,
     "error": 0.02,
+    "beamwidth": 0,
     "outline": [
         pm.Vector2(-1, -0.5),
         pm.Vector2(-1, 0.5),
@@ -177,6 +205,7 @@ u3_info = {
     "height": 5,
     "rotation": 90,
     "error": 0.02,
+    "beamwidth": 0,
     "outline": [
         pm.Vector2(-1, -0.5),
         pm.Vector2(-1, 0.5),
@@ -192,6 +221,7 @@ u2_info = {
     "height": 5,
     "rotation": 180,
     "error": 0.02,
+    "beamwidth": 0,
     "outline": [
         pm.Vector2(-1, -0.5),
         pm.Vector2(-1, 0.5),
