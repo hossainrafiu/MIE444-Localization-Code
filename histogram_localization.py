@@ -18,17 +18,21 @@ gameMap = [
 
 
 class HistogramLocalization:
-    def __init__(self, game_map, sensor_accuracy=0.8):
+    def __init__(self, game_map, sensor_accuracy=0.8, omnidrive=False):
         """
         Initialize the histogram localization filter.
 
         Args:
             game_map: 2D list representing the maze with block types
             sensor_accuracy: Probability that sensor reading is correct (0.0 to 1.0)
+            omnidrive: If True, 'left' and 'right' commands strafe laterally without rotation.
+                       If False, 'left' and 'right' rotate the robot in place.
         """
         self.game_map = np.array(game_map)
         self.rows, self.cols = self.game_map.shape
         self.sensor_accuracy = sensor_accuracy
+        # If omnidrive=True the robot can translate sideways without changing orientation
+        self.omnidrive = omnidrive
 
         # 4 possible orientations: 0=North, 1=East, 2=South, 3=West
         self.num_orientations = 4
@@ -86,90 +90,96 @@ class HistogramLocalization:
         # Normalize to maintain valid probability distribution
         self.normalize_belief()
 
-    def predict_motion(self, action, move_accuracy=0.8):
-        """
-        Predict motion based on robot action with uncertainty.
+    def predict_motion(self, action, move_accuracy=0.8, strafe_accuracy=0.8):
+        """Predict motion based on robot action with uncertainty.
+
+        Supports two modes:
+        - Normal (omnidrive=False): actions = forward/backward/left/right (rotate for left/right)
+        - Omnidrive (omnidrive=True): actions = forward/backward/left/right (translate for left/right)
 
         Args:
-            action: 'forward', 'left', 'right', or 'backward'
-            move_accuracy: Probability that motion executed correctly
+            action: movement command
+            move_accuracy: probability that forward/backward succeeds
+            strafe_accuracy: probability that lateral translation succeeds (omnidrive only)
         """
         new_belief = np.zeros_like(self.belief)
 
         # Motion vectors for each orientation: [North, East, South, West]
-        # forward motion for each orientation
-        forward_motions = [(-1, 0), (0, 1), (1, 0), (0, -1)]  # N, E, S, W
+        forward_motions = [(-1, 0), (0, 1), (1, 0), (0, -1)]
+        # Lateral (left) motions relative to orientation (perpendicular to forward, CCW)
+        lateral_left = [(0, -1), (-1, 0), (0, 1), (1, 0)]  # From facing N,E,S,W
+        lateral_right = [(0, 1), (1, 0), (0, -1), (-1, 0)]
 
         if action == "forward":
-            # Move forward in current orientation
             for i in range(self.rows):
                 for j in range(self.cols):
                     if self.game_map[i, j] == 4:
                         continue
-
                     for orientation in range(self.num_orientations):
                         dy, dx = forward_motions[orientation]
                         prev_i, prev_j = i - dy, j - dx
-
-                        # Moved successfully from previous position
                         if 0 <= prev_i < self.rows and 0 <= prev_j < self.cols:
                             new_belief[i, j, orientation] += (
                                 self.belief[prev_i, prev_j, orientation] * move_accuracy
                             )
-
-                        # Stayed in place (motion failed)
                         new_belief[i, j, orientation] += self.belief[
                             i, j, orientation
                         ] * (1.0 - move_accuracy)
 
         elif action == "backward":
-            # Move backward in current orientation
             for i in range(self.rows):
                 for j in range(self.cols):
                     if self.game_map[i, j] == 4:
                         continue
-
                     for orientation in range(self.num_orientations):
                         dy, dx = forward_motions[orientation]
-                        prev_i, prev_j = i + dy, j + dx  # Opposite direction
-
+                        prev_i, prev_j = i + dy, j + dx
                         if 0 <= prev_i < self.rows and 0 <= prev_j < self.cols:
                             new_belief[i, j, orientation] += (
                                 self.belief[prev_i, prev_j, orientation] * move_accuracy
                             )
-
                         new_belief[i, j, orientation] += self.belief[
                             i, j, orientation
                         ] * (1.0 - move_accuracy)
 
-        elif action == "left":
-            # Rotate left (counter-clockwise): orientation changes by -1
-            for i in range(self.rows):
-                for j in range(self.cols):
-                    for orientation in range(self.num_orientations):
-                        prev_orientation = (orientation + 1) % self.num_orientations
-                        new_belief[i, j, orientation] += (
-                            self.belief[i, j, prev_orientation] * move_accuracy
-                        )
-                        # Rotation failed, stayed in same orientation
-                        new_belief[i, j, orientation] += self.belief[
-                            i, j, orientation
-                        ] * (1.0 - move_accuracy)
-
-        elif action == "right":
-            # Rotate right (clockwise): orientation changes by +1
-            for i in range(self.rows):
-                for j in range(self.cols):
-                    for orientation in range(self.num_orientations):
-                        prev_orientation = (orientation - 1) % self.num_orientations
-                        new_belief[i, j, orientation] += (
-                            self.belief[i, j, prev_orientation] * move_accuracy
-                        )
-                        # Rotation failed, stayed in same orientation
-                        new_belief[i, j, orientation] += self.belief[
-                            i, j, orientation
-                        ] * (1.0 - move_accuracy)
-
+        elif action in ("left", "right"):
+            if self.omnidrive:
+                # Translate sideways without changing orientation
+                lateral_vectors = lateral_left if action == "left" else lateral_right
+                for i in range(self.rows):
+                    for j in range(self.cols):
+                        if self.game_map[i, j] == 4:
+                            continue
+                        for orientation in range(self.num_orientations):
+                            dy, dx = lateral_vectors[orientation]
+                            prev_i, prev_j = i - dy, j - dx
+                            if 0 <= prev_i < self.rows and 0 <= prev_j < self.cols:
+                                new_belief[i, j, orientation] += (
+                                    self.belief[prev_i, prev_j, orientation]
+                                    * strafe_accuracy
+                                )
+                            new_belief[i, j, orientation] += self.belief[
+                                i, j, orientation
+                            ] * (1.0 - strafe_accuracy)
+            else:
+                # Rotate in place, orientation changes
+                for i in range(self.rows):
+                    for j in range(self.cols):
+                        for orientation in range(self.num_orientations):
+                            if action == "left":
+                                prev_orientation = (
+                                    orientation + 1
+                                ) % self.num_orientations
+                            else:
+                                prev_orientation = (
+                                    orientation - 1
+                                ) % self.num_orientations
+                            new_belief[i, j, orientation] += (
+                                self.belief[i, j, prev_orientation] * move_accuracy
+                            )
+                            new_belief[i, j, orientation] += self.belief[
+                                i, j, orientation
+                            ] * (1.0 - move_accuracy)
         else:
             print(f"Invalid action: {action}")
             return
@@ -290,43 +300,48 @@ class HistogramLocalization:
             )
 
 
-# Example usage
-if __name__ == "__main__":
-    # Initialize the localization system
-    localizer = HistogramLocalization(gameMap, sensor_accuracy=0.8)
+# # Example usage
+# if __name__ == "__main__":
+#     # Initialize the localization system
+#     # Toggle omnidrive here. Set omnidrive=True to enable strafing instead of rotation.
+#     localizer = HistogramLocalization(gameMap, sensor_accuracy=0.8, omnidrive=False)
 
-    print("Initial belief state (uniform distribution):")
-    localizer.print_belief_summary()
+#     print("Initial belief state (uniform distribution):")
+#     localizer.print_belief_summary()
 
-    # Simulate robot observations and movements
-    print("\n\n--- Observation 1: Robot sees block type 2 ---")
-    localizer.update_belief(observed_block_type=2)
-    localizer.print_belief_summary()
+#     # Simulate robot observations and movements
+#     print("\n\n--- Observation 1: Robot sees block type 2 ---")
+#     localizer.update_belief(observed_block_type=2)
+#     localizer.print_belief_summary()
 
-    print("\n\n--- Robot turns right ---")
-    localizer.predict_motion("right", move_accuracy=0.9)
+#     print("\n\n--- Robot turns right ---")
+#     localizer.predict_motion("right", move_accuracy=0.9)
 
-    print("\n\n--- Robot moves forward ---")
-    localizer.predict_motion("forward", move_accuracy=0.9)
+#     print("\n\n--- Robot moves forward ---")
+#     localizer.predict_motion("forward", move_accuracy=0.9)
 
-    print("\n\n--- Observation 2: Robot sees block type 1 ---")
-    localizer.update_belief(observed_block_type=1)
-    localizer.print_belief_summary()
+#     print("\n\n--- Observation 2: Robot sees block type 1 ---")
+#     localizer.update_belief(observed_block_type=1)
+#     localizer.print_belief_summary()
 
-    print("\n\n--- Robot moves forward ---")
-    localizer.predict_motion("forward", move_accuracy=0.9)
+#     print("\n\n--- Robot moves forward ---")
+#     localizer.predict_motion("forward", move_accuracy=0.9)
 
-    print("\n\n--- Observation 3: Robot sees block type 5 ---")
-    localizer.update_belief(observed_block_type=5)
-    localizer.print_belief_summary()
+#     print("\n\n--- Observation 3: Robot sees block type 5 ---")
+#     localizer.update_belief(observed_block_type=5)
+#     localizer.print_belief_summary()
 
-    # Visualize the final belief distribution
-    localizer.visualize_belief()
+#     # Visualize the final belief distribution
+#     localizer.visualize_belief()
 
 # Works with user input
 if __name__ == "__main__":
+
+    omnidrive_mode = input("Enable omnidrive mode? (y/n): ").strip().lower() == "y"
     # Initialize the localization system
-    localizer = HistogramLocalization(gameMap, sensor_accuracy=0.8)
+    localizer = HistogramLocalization(
+        gameMap, sensor_accuracy=0.8, omnidrive=omnidrive_mode
+    )
 
     print("Initial belief state (uniform distribution):")
     localizer.print_belief_summary()
@@ -350,7 +365,7 @@ if __name__ == "__main__":
         localizer.visualize_belief()
 
         action = input(
-            "\nEnter robot action ('forward' - (w), 'backward' - (s), 'left' - (a), 'right' - (d)) or 'q' to quit: "
+            "\nEnter robot action ('forward'(w), 'backward'(s), 'left'(a), 'right'(d)) or 'q' to quit: "
         )
         if action.lower() == "q":
             break
