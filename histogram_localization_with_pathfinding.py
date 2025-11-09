@@ -46,6 +46,33 @@ while True:
     localizer.update_belief(observed_block_type)
     localizer.print_belief_summary()
     localizer.visualize_belief()
+    
+    # Determine next action using pathfinding
+    (current_r, current_c, current_ori) = localizer.get_most_likely_position()
+    position_prob = localizer.get_position_probability(current_r, current_c)
+    print(position_prob)
+
+    if position_prob < 0.4:
+        print(
+            "Warning: Low confidence in current position estimate. Just move forward."
+        )
+    else:
+        target_rc = goal_from_state(
+            with_load, load_pick_up_location, unload_drop_off_location
+        )
+        action, path = next_action_to_objective(
+            int(current_r),
+            int(current_c),
+            int(current_ori),
+            with_load,
+            omnidrive=omnidrive_mode,
+            pickup=load_pick_up_location,
+            dropoff=unload_drop_off_location,
+        )
+        print(f"Current: ({current_r},{current_c}) ori={current_ori}  Target: {target_rc}")
+        print(f"Next action: {action}")
+        if path:
+            print(f"Path length: {len(path)}  Path: {path}")
 
     action = input(
         "\nEnter robot action ('forward'(w), 'backward'(s), 'left'(a), 'right'(d), 'loadAction'(l)) or 'q' to quit: "
@@ -73,29 +100,3 @@ while True:
         localizer.predict_motion(action)
     localizer.print_belief_summary()
     localizer.visualize_belief()
-
-    # Determine next action using pathfinding
-    current_r, current_c, current_ori = localizer.get_most_likely_position()
-    position_prob = localizer.get_position_probability(current_r, current_c)
-
-    if position_prob < 0.2:
-        print(
-            "Warning: Low confidence in current position estimate. Just move forward."
-        )
-        continue
-    target_rc = goal_from_state(
-        with_load, load_pick_up_location, unload_drop_off_location
-    )
-    action, path = next_action_to_objective(
-        int(current_r),
-        int(current_c),
-        int(current_ori),
-        with_load,
-        omnidrive=omnidrive_mode,
-        pickup=load_pick_up_location,
-        dropoff=unload_drop_off_location,
-    )
-    print(f"Current: ({current_r},{current_c}) ori={current_ori}  Target: {target_rc}")
-    print(f"Next action: {action}")
-    if path:
-        print(f"Path length: {len(path)}  Path: {path}")
