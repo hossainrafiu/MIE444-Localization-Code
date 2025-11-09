@@ -422,6 +422,18 @@ while True:
     pf.plot_estimated_position(ax, estimated_pos)
     plt.show()
     plt.pause(2)
+    
+    # Ping Sensors
+    raw_cmd = "p"
+    packet_tx = packetize(raw_cmd)
+    if packet_tx:
+        transmit(packet_tx)
+    [responses, time_rx] = receive()
+    print(f"Sensor Ping Responses at {time_rx}: {responses}")
+    last_sensor_readings = [
+        float(responses[i]) + 2.5 for i in range(len(responses) - 1)
+    ]
+    current_frontend = responses[-1]
 
     sensor_readings = shift_sensor_readings(last_sensor_readings, current_frontend) if not omnidrive_mode else last_sensor_readings
     print(sensor_readings)
