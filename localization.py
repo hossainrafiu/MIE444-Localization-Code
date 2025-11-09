@@ -307,7 +307,7 @@ class ParticleFilter:
             p = predicted[i]
             a = actual[i]
             # print(f"Predicted: {p}, Actual: {a}")
-            if a == -1 or p == -1:
+            if (a == -1 or p == -1) and not (a < 35 or p < 35):
                 continue
             if abs(p - a) > 6:
                 return 0.0  # Discard particles with large errors
