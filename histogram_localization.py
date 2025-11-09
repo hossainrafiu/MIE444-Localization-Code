@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 # 3 - 3 Walls
 # 4 - 4 Walls (Enclosed and Unreachable)
 # 5 - Two Opposite Walls
-gameMap = [
+defaultGameMap = [
     [2, 1, 5, 2, 4, 3, 4, 3],
     [1, 2, 4, 2, 5, 0, 5, 1],
     [5, 4, 3, 4, 4, 5, 4, 5],
@@ -18,7 +18,7 @@ gameMap = [
 
 
 class HistogramLocalization:
-    def __init__(self, game_map, sensor_accuracy=0.8, omnidrive=False):
+    def __init__(self, game_map=defaultGameMap, sensor_accuracy=0.8, omnidrive=True):
         """
         Initialize the histogram localization filter.
 
@@ -340,7 +340,7 @@ if __name__ == "__main__":
     omnidrive_mode = input("Enable omnidrive mode? (y/n): ").strip().lower() == "y"
     # Initialize the localization system
     localizer = HistogramLocalization(
-        gameMap, sensor_accuracy=0.8, omnidrive=omnidrive_mode
+        defaultGameMap, sensor_accuracy=0.8, omnidrive=omnidrive_mode
     )
 
     print("Initial belief state (uniform distribution):")
