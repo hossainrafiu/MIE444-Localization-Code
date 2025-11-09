@@ -362,7 +362,8 @@ while RUN_COMMUNICATION_CLIENT:
 
     # Plot particles and estimated position
     estimated_pos = pf.estimate_position()
-    print(f"Estimated Position: {estimated_pos} num particles: {len(pf.particles)}")
+    confidence = pf.get_confidence()
+    print(f"Estimated Position: {estimated_pos} with confidence {confidence:.1f}%")
     plt.title("Particle Filter After Resampling")
     pf.plot_particles(ax)
     pf.plot_estimated_position(ax, estimated_pos)

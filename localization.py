@@ -361,6 +361,36 @@ class ParticleFilter:
         theta = float(sum(p.theta * p.weight for p in self.particles))
         return (round(x, 2), round(y, 2), round(theta, 2))
 
+    def get_confidence(self):
+        """
+        Returns confidence based on spatial clustering of particles.
+        Tight cluster = high confidence, spread out = low confidence.
+        Returns: float between 0.0 and 1.0
+        """
+        if len(self.particles) < 2:
+            return 0.0
+
+        weights = np.array([p.weight for p in self.particles])
+        xs = np.array([p.x for p in self.particles])
+        ys = np.array([p.y for p in self.particles])
+
+        # Weighted standard deviation
+        mean_x = np.sum(xs * weights)
+        mean_y = np.sum(ys * weights)
+
+        var_x = np.sum(weights * (xs - mean_x) ** 2)
+        var_y = np.sum(weights * (ys - mean_y) ** 2)
+
+        # Combined spatial uncertainty (standard deviation)
+        spatial_std = np.sqrt(var_x + var_y)
+
+        # Convert to confidence:
+        # std < 2 cm → 100% confidence
+        # std > 20 cm → 0% confidence
+        confidence = max(0.0, min(1.0, 1.0 - spatial_std / 20.0))
+
+        return confidence * 100.0
+
     def plot_particles(self, ax):
         xs = [p.x for p in self.particles]
         ys = [p.y for p in self.particles]
