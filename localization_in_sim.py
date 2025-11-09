@@ -261,9 +261,9 @@ else:
 
 pf = ParticleFilter(
     num_particles=100,
-    initial_multiplier=5,
-    sensor_range=45,
-    sensor_noise=2.0,
+    initial_multiplier=50,
+    sensor_range=100,
+    sensor_noise=1.0,
     motion_noise=0.5,
 )
 
@@ -274,13 +274,11 @@ pf.plot_particles(ax)
 plt.ion()
 plt.show()
 plt.pause(0.1)
-ax.cla()  # Clear axis for next iteration
 
 RUN_COMMUNICATION_CLIENT = True  # If true, run this. If false, skip it
 while RUN_COMMUNICATION_CLIENT:
     # Input a command
-    print("Enter command: ", end="", flush=True)
-    raw_cmd = msvcrt.getche().decode("utf-8")
+    raw_cmd = input("Enter command: ")
     if raw_cmd == "q":
         print("\nQuitting...")
         break
@@ -333,12 +331,7 @@ while RUN_COMMUNICATION_CLIENT:
     else:
         delta_theta = 0
     pf.move_particles(delta_x, delta_y, delta_theta)
-
-    sensor_readings = [float(responses[i][1]) + 2.5 for i in range(len(responses))]
-    print(sensor_readings)
-    pf.update_weights(sensor_readings)
-
-    pf.resample_particles()
+    # pf.move_particles_improved(delta_x, delta_y, delta_theta)
 
     # Plot particles and estimated position
     estimated_pos = pf.estimate_position()
@@ -346,6 +339,31 @@ while RUN_COMMUNICATION_CLIENT:
     plt.title("Particle Filter After Resampling")
     pf.plot_particles(ax)
     pf.plot_estimated_position(ax, estimated_pos)
-    plt.draw()
-    plt.pause(0.1)
-    ax.cla()  # Clear axis for next iteration
+    plt.show()
+    plt.pause(2)
+
+    sensor_readings = [float(responses[i][1]) + 2.5 for i in range(len(responses))]
+    print(sensor_readings)
+    # pf.update_weights(sensor_readings)
+    pf.update_weights_improved(sensor_readings)
+    # pf.update_weights_log_stable(sensor_readings)
+
+    # Plot particles and estimated position
+    estimated_pos = pf.estimate_position()
+    print(f"Estimated Position: {estimated_pos}")
+    plt.title("Particle Filter After Resampling")
+    pf.plot_particles(ax)
+    pf.plot_estimated_position(ax, estimated_pos)
+    plt.show()
+    plt.pause(2)
+
+    # pf.resample_particles()
+    pf.resample_particles_improved()
+
+    # Plot particles and estimated position
+    estimated_pos = pf.estimate_position()
+    print(f"Estimated Position: {estimated_pos} num particles: {len(pf.particles)}")
+    plt.title("Particle Filter After Resampling")
+    pf.plot_particles(ax)
+    pf.plot_estimated_position(ax, estimated_pos)
+    plt.show()
