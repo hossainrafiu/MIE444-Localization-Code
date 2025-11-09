@@ -286,9 +286,9 @@ while RUN_COMMUNICATION_CLIENT:
     if raw_cmd == "w":
         cmd = "w0:3"
     elif raw_cmd == "d":
-        cmd = "r0:45"
+        cmd = "w1:3"
     elif raw_cmd == "a":
-        cmd = "r0:-45"
+        cmd = "w1:-3"
     elif raw_cmd == "s":
         cmd = "w0:-3"
 
@@ -325,11 +325,16 @@ while RUN_COMMUNICATION_CLIENT:
 
     delta_y = 0
     if raw_cmd == "d":
-        delta_theta = -math.pi * 45 / 180
+        delta_y = 3
     elif raw_cmd == "a":
-        delta_theta = math.pi * 45 / 180
-    else:
-        delta_theta = 0
+        delta_y = -3
+    
+    # if raw_cmd == "d":
+    #     delta_theta = -math.pi * 45 / 180
+    # elif raw_cmd == "a":
+    #     delta_theta = math.pi * 45 / 180
+    # else:
+    delta_theta = 0
     pf.move_particles(delta_x, delta_y, delta_theta)
     # pf.move_particles_improved(delta_x, delta_y, delta_theta)
 

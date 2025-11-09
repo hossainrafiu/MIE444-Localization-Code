@@ -398,7 +398,7 @@ while True:
         delta_y = 0
 
     delta_theta = 0
-    if raw_cmd.startswith("r"):
+    if raw_cmd.startswith("r") and not omnidrive_mode:
         delta_y = 0
         delta_x = 0
         new_frontend = int(raw_cmd[1])
@@ -423,7 +423,7 @@ while True:
     plt.show()
     plt.pause(2)
 
-    sensor_readings = shift_sensor_readings(last_sensor_readings, current_frontend)
+    sensor_readings = shift_sensor_readings(last_sensor_readings, current_frontend) if not omnidrive_mode else last_sensor_readings
     print(sensor_readings)
 
     # Particle Filter Update
