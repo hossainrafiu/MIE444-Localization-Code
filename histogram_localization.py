@@ -224,7 +224,7 @@ class HistogramLocalization:
         # Sum over all orientations to get position probability
         position_belief = np.sum(self.belief, axis=2)
 
-        plt.figure(figsize=(12, 6))
+        plt.figure(num=1, figsize=(12, 6), clear=True)
 
         # Plot 1: Position probability
         plt.subplot(1, 2, 1)
@@ -266,8 +266,7 @@ class HistogramLocalization:
         plt.ylim([0, 1])
 
         plt.tight_layout()
-        plt.show()
-        plt.pause(0.1)
+        plt.show(block=False)
 
     def print_belief_summary(self):
         """Print a summary of the current belief state."""

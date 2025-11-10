@@ -328,7 +328,7 @@ while RUN_COMMUNICATION_CLIENT:
         delta_y = -3
     elif raw_cmd == "a":
         delta_y = 3
-    
+
     # if raw_cmd == "d":
     #     delta_theta = -math.pi * 45 / 180
     # elif raw_cmd == "a":

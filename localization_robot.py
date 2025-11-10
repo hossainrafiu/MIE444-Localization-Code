@@ -35,6 +35,7 @@ import matplotlib.pyplot as plt
 
 from localization import ParticleFilter
 from pathfinding import *
+from robot_control import RobotDrive
 
 
 # Wrapper functions
@@ -314,6 +315,8 @@ else:
 
 ############## Main section for the communication client ##############
 
+robot = RobotDrive(packetize, transmit, receive)
+
 pf = ParticleFilter(
     num_particles=100,
     initial_multiplier=10,
@@ -327,31 +330,17 @@ with_load = False
 unload_drop_off_location = [3, 7]  # (row, col)
 
 omnidrive_mode = True
-last_sensor_readings = [0, 0, 0, 0]
-current_frontend = 0  # 0: forward, 1: right, 2: backward, 3: left
 
 time.sleep(5)  # Wait a bit for everything to start up
 
-fig, ax = plt.subplots()
+plt.figure(figsize=(8, 6))
+ax = plt.gca()
 pf.plot_particles(ax)
 plt.ion()
 plt.show()
-plt.pause(2)
 
 # Ping Sensors
-raw_cmd = "p"
-packet_tx = packetize(raw_cmd)
-if packet_tx:
-    transmit(packet_tx)
-while True:
-    [responses, time_rx] = receive()
-    if responses[0] == raw_cmd:
-        continue
-    if responses[0] == "+" or responses[0] is not False:
-        break
-print(f"Sensor Ping Responses at {time_rx}: {responses}")
-last_sensor_readings = [float(responses[i]) + 2.5 for i in range(len(responses) - 1)]
-current_frontend = int(responses[-1])
+robot.pingSensors()
 
 while True:
     # Pathfinding
@@ -385,22 +374,22 @@ while True:
         )
         raw_cmd = "f"
     if action == "forward":
-        if current_frontend == 0:
+        if robot.currentFrontend == 0:
             raw_cmd = "f"
         else:
             raw_cmd = "r0"
     if action == "right":
-        if current_frontend == 1:
+        if robot.currentFrontend == 1:
             raw_cmd = "f"
         else:
             raw_cmd = "r1"
     if action == "backward":
-        if current_frontend == 2:
+        if robot.currentFrontend == 2:
             raw_cmd = "f"
         else:
             raw_cmd = "r2"
     if action == "left":
-        if current_frontend == 3:
+        if robot.currentFrontend == 3:
             raw_cmd = "f"
         else:
             raw_cmd = "r3"
@@ -411,30 +400,26 @@ while True:
         with_load = not with_load
 
     # Send the command
-    packet_tx = packetize(raw_cmd)
-    if packet_tx:
-        transmit(packet_tx)
-
-    # Receive the response
-    while True:
-        [responses, time_rx] = receive()
-        if responses[0] == raw_cmd:
-            continue
-        if responses[0] == "+" or responses[0] is not False:
-            break
-    print(f"Command Response at {time_rx}: {responses}")
-
-    time.sleep(1)  # Wait a bit before requesting all sensor readings
+    if raw_cmd == "f":
+        robot.obstacleAvoidance()
+        time.sleep(0.5)
+    else:
+        robot.sendCommand(raw_cmd)
+        time.sleep(0.5)
 
     ############### Particle Filter Update ##############
 
     if raw_cmd == "f":
-        delta_x = 3 if current_frontend == 0 else -3 if current_frontend == 2 else 0
+        delta_x = (
+            3 if robot.currentFrontend == 0 else -3 if robot.currentFrontend == 2 else 0
+        )
     else:
         delta_x = 0
 
     if raw_cmd == "f":
-        delta_y = -3 if current_frontend == 1 else 3 if current_frontend == 3 else 0
+        delta_y = (
+            -3 if robot.currentFrontend == 1 else 3 if robot.currentFrontend == 3 else 0
+        )
     else:
         delta_y = 0
 
@@ -443,7 +428,7 @@ while True:
         delta_y = 0
         delta_x = 0
         new_frontend = int(raw_cmd[1])
-        turn_steps = (new_frontend - current_frontend) % 4
+        turn_steps = (new_frontend - robot.currentFrontend) % 4
         if turn_steps == 1:
             delta_theta = math.pi / 2
         elif turn_steps == 2:
@@ -465,59 +450,17 @@ while True:
     plt.pause(1)
 
     # Ping Sensors
-    raw_cmd = "p"
-    packet_tx = packetize(raw_cmd)
-    if packet_tx:
-        transmit(packet_tx)
-    while True:
-        [responses, time_rx] = receive()
-        if responses[0] == raw_cmd:
-            continue
-        if responses[0] == "+" or responses[0] is not False:
-            break
-    print(f"Sensor Ping Responses at {time_rx}: {responses}")
-    major_change_detected = []
-    for i in range(len(responses) - 1):
-        if (
-            abs(float(responses[i]) / 25.4 - last_sensor_readings[i]) > 5.0
-            and last_sensor_readings[i] != 0
-        ):
-            major_change_detected.append(i)
-        last_sensor_readings[i] = float(responses[i]) / 25.4 + 3.0
-    current_frontend = responses[-1]
-
-    if major_change_detected:
-        print(f"Major change detected on sensors: {major_change_detected}")
-        # send forward commands to avoid wall edge
-        for _ in range(len(major_change_detected)):
-            raw_cmd = "f"
-            packet_tx = packetize(raw_cmd)
-            if packet_tx:
-                transmit(packet_tx)
-            while True:
-                [responses, time_rx] = receive()
-                if responses[0] == raw_cmd:
-                    continue
-                if responses[0] == "+" or responses[0] is not False:
-                    break
-            print(f"Command Response at {time_rx}: {responses}")
-            pf.move_particles(
-                1 if current_frontend == 0 else -1 if current_frontend == 2 else 0,
-                -1 if current_frontend == 1 else 1 if current_frontend == 3 else 0,
-                0,
-            )
-            # pf.move_particles_improved(1 if current_frontend == 0 else -1 if current_frontend == 2 else 0,
-            #                   -1 if current_frontend == 1 else 1 if current_frontend == 3 else 0,
-            #                   0)
+    robot.pingSensors()
+    robot.avoidCornersIfTurning()
 
     sensor_readings = (
-        shift_sensor_readings(last_sensor_readings, current_frontend)
+        shift_sensor_readings(robot.ToFDistancesRaw, robot.currentFrontend)
         if not omnidrive_mode
-        else last_sensor_readings
+        else robot.ToFDistancesRaw
     )
     print(sensor_readings)
 
-    # Swap sensor readings 1 and 3 for correct orientation
+    # Swap sensor readings 1 and 3 for correct orientation in particle filter
     sensor_readings[1], sensor_readings[3] = sensor_readings[3], sensor_readings[1]
 
     print(f"Sensor readings (inches): {sensor_readings}")

@@ -46,7 +46,7 @@ while True:
     localizer.update_belief(observed_block_type)
     localizer.print_belief_summary()
     localizer.visualize_belief()
-    
+
     # Determine next action using pathfinding
     (current_r, current_c, current_ori) = localizer.get_most_likely_position()
     position_prob = localizer.get_position_probability(current_r, current_c)
@@ -69,7 +69,9 @@ while True:
             pickup=load_pick_up_location,
             dropoff=unload_drop_off_location,
         )
-        print(f"Current: ({current_r},{current_c}) ori={current_ori}  Target: {target_rc}")
+        print(
+            f"Current: ({current_r},{current_c}) ori={current_ori}  Target: {target_rc}"
+        )
         print(f"Next action: {action}")
         if path:
             print(f"Path length: {len(path)}  Path: {path}")

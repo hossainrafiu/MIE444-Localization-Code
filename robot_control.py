@@ -1,52 +1,68 @@
-from localization_robot import packetize, transmit, receive
 import time
 
+RECURSIVE_ALLIGN = False
 
-class ObstacleAvoidance:
-    def __init__(self):
+
+class RobotDrive:
+    def __init__(self, packetize, transmit, receive):
         self.verboseConsole = True
         self.RESPONSE_TIMEOUT = 3  # seconds
         self.MOVELEFTWHENPOSSIBLE = False
         self.MOVERIGHTWHENPOSSIBLE = False
         self.OMNIWHEELDRIVE = True
+        self.packetize = packetize
+        self.transmit = transmit
+        self.receive = receive
 
         self.lastUSDistances = [0, 0, 0, 0, 0, 0, 0, 0]
         self.USDistances = [0, 0, 0, 0, 0, 0, 0, 0]
+        self.USDistancesRaw = [0, 0, 0, 0, 0, 0, 0, 0]
         self.lastToFDistances = [8000, 8000, 8000, 8000]  # front, right, back, left
         self.ToFDistances = [8000, 8000, 8000, 8000]  # front, right, back, left
+        self.ToFDistancesRaw = [8000, 8000, 8000, 8000]
         self.currentFrontend = 0
 
-    def pingSensors(self, raw_cmd="p"):
-        packet_tx = packetize(raw_cmd)
+    def pingSensors(self, raw_cmd="p", try_again=True):
+        packet_tx = self.packetize(raw_cmd)
         if packet_tx:
-            transmit(packet_tx)
+            self.transmit(packet_tx)
         start_time = time.time()
         while time.time() - start_time < self.RESPONSE_TIMEOUT:
-            [responses, time_rx] = receive()
+            [responses, time_rx] = self.receive()
             if responses[0] == raw_cmd:
                 continue
-            if responses[0] is not False:
+            if responses[0] != "+" and responses[0] is not False:
                 break
         if self.verboseConsole:
             print(f"Sensor Responses at {time_rx}: {responses}")
+            # Check validity of responses
+            if len(responses) != (5 if raw_cmd == "p" else 9):
+                if self.verboseConsole:
+                    print("Invalid sensor response length, trying again.")
+                    if try_again:
+                        self.pingSensors(raw_cmd, try_again=False)
+                return
         self.currentFrontend = int(responses[-1])
-        self.lastToFDistances = self.ToFDistances.copy()
         # shift responses to match front direction
         if raw_cmd == "p":
+            self.lastToFDistances = self.ToFDistances.copy()
             for i in range(4):
                 sensor_index = (i - self.currentFrontend) % 4
+                self.ToFDistancesRaw[i] = int(responses[i])
                 self.ToFDistances[sensor_index] = int(responses[i])
         if raw_cmd == "u":
+            self.lastUSDistances = self.USDistances.copy()
             for i in range(8):
                 sensor_index = (i - self.currentFrontend) % 8
+                self.USDistancesRaw[i] = int(responses[i])
                 self.USDistances[sensor_index] = int(responses[i])
 
     def sendCommand(self, raw_cmd):
-        packet_tx = packetize(raw_cmd)
+        packet_tx = self.packetize(raw_cmd)
         if packet_tx:
-            transmit(packet_tx)
+            self.transmit(packet_tx)
         while True:
-            [responses, time_rx] = receive()
+            [responses, time_rx] = self.receive()
             if responses[0] == raw_cmd:
                 continue
             if responses[0] == "+":
@@ -54,6 +70,53 @@ class ObstacleAvoidance:
         if self.verboseConsole:
             print(f"Command Response at {time_rx}: {responses}")
         return responses
+
+    def allignWithWall(self, direction: int):
+        if direction < 0 or direction > 3:
+            if self.verboseConsole:
+                print("Invalid direction for allignWithWall.")
+            return
+        self.pingSensors("u")
+        sensor1, sensor2 = 0, 0
+        if direction == 0:
+            sensor1 = 7
+            sensor2 = 2
+        elif direction == 1:
+            sensor1 = 1
+            sensor2 = 4
+        elif direction == 2:
+            sensor1 = 3
+            sensor2 = 6
+        elif direction == 3:
+            sensor1 = 5
+            sensor2 = 0
+        diff = self.USDistances[sensor1] - self.USDistances[sensor2]
+        if self.verboseConsole:
+            print(f"Parallel adjustment diff: {diff}")
+        if abs(diff) > 0 and abs(diff) < 100 and self.ToFDistances[direction] < 100:
+            movement_duration = abs(diff) * 5  # adjust delay time based on difference
+            if diff > 0:
+                # sensor1 is farther than sensor2, rotate CW
+                if self.verboseConsole:
+                    print("Rotating CW for parallel adjustment.")
+                self.sendCommand(f"k{movement_duration}")
+            else:
+                # sensor2 is farther than sensor1, rotate CCW
+                if self.verboseConsole:
+                    print("Rotating CCW for parallel adjustment.")
+                self.sendCommand(f"j{movement_duration}")
+            self.pingSensors("u")  # update readings after adjustment
+            time.sleep(0.1)
+            if (
+                abs(self.USDistances[sensor1] - self.USDistances[sensor2]) > 20
+                and abs(self.USDistances[sensor1] - self.USDistances[sensor2]) < 100
+            ):
+                if self.verboseConsole:
+                    print("Further parallel adjustment needed.")
+                if RECURSIVE_ALLIGN:
+                    self.allignWithWall(
+                        direction
+                    )  # recursive call if still not parallel
 
     def moveLeftWhenPossible(self):
         # try to move left if possible

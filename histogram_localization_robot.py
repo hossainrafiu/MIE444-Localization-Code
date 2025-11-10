@@ -34,6 +34,7 @@ import serial
 import matplotlib.pyplot as plt
 
 from histogram_localization import HistogramLocalization
+from robot_control import RobotDrive
 from pathfinding import *
 
 
@@ -257,7 +258,7 @@ PORT_TX = 61200  # The port used by the *CLIENT* to receive
 PORT_RX = 61201  # The port used by the *CLIENT* to send data
 
 ### Serial Setup ###
-BAUDRATE = 9600  # Baudrate in bps
+BAUDRATE = 115200  # Baudrate in bps
 PORT_SERIAL = "COM8"  # COM port identification
 TIMEOUT_SERIAL = 3  # Serial port timeout, in seconds
 
@@ -292,6 +293,8 @@ else:
 
 ############## Main section for the communication client ##############
 
+robot = RobotDrive(packetize, transmit, receive)
+
 omnidrive_mode = True
 localizer = HistogramLocalization()
 motionSteps = 0  # Update Localization every 4 motion steps
@@ -301,32 +304,12 @@ with_load = False
 unload_drop_off_location = [3, 7]  # (row, col)
 updateMotion = False
 
-last_sensor_readings = [0, 0, 0, 0]
-current_frontend = 0  # 0: forward, 1: right, 2: backward, 3: left
-
 localizer.print_belief_summary()
 localizer.visualize_belief()
 
 if True:
-    # Ping Sensors
-    raw_cmd = "p"
-    packet_tx = packetize(raw_cmd)
-    if packet_tx:
-        transmit(packet_tx)
-    while True:
-        [responses, time_rx] = receive()
-        if responses[0] == raw_cmd:
-            continue
-        if responses[0] != "+" or responses[0] is not False:
-            break
-    
-    print(f"Sensor Ping Responses at {time_rx}: {responses}")
-    last_sensor_readings = [
-        float(responses[i]) + 2.5 for i in range(len(responses) - 1)
-    ]
-    current_frontend = int(responses[-1])
-    
-    observed_block_type = block_type_detected(last_sensor_readings)
+    robot.pingSensors()
+    observed_block_type = block_type_detected(robot.ToFDistancesRaw)
     print(f"Detected block type: {observed_block_type}")
     localizer.update_belief(observed_block_type)
     localizer.visualize_belief()
@@ -357,7 +340,15 @@ while True:
     else:
         action = ""
         if updateMotion:
-            motion = "forward" if current_frontend == 0 else "right" if current_frontend == 1 else "backwards" if current_frontend==2 else "left"
+            motion = (
+                "forward"
+                if robot.currentFrontend == 0
+                else (
+                    "right"
+                    if robot.currentFrontend == 1
+                    else "backwards" if robot.currentFrontend == 2 else "left"
+                )
+            )
             localizer.predict_motion(motion)
             print("\n" + motion + "\n")
             localizer.visualize_belief()
@@ -369,22 +360,22 @@ while True:
         )
         raw_cmd = "f"
     if action == "forward":
-        if current_frontend == 0:
+        if robot.currentFrontend == 0:
             raw_cmd = "f"
         else:
             raw_cmd = "r0"
     if action == "right":
-        if current_frontend == 1:
+        if robot.currentFrontend == 1:
             raw_cmd = "f"
         else:
             raw_cmd = "r1"
     if action == "backward":
-        if current_frontend == 2:
+        if robot.currentFrontend == 2:
             raw_cmd = "f"
         else:
             raw_cmd = "r2"
     if action == "left":
-        if current_frontend == 3:
+        if robot.currentFrontend == 3:
             raw_cmd = "f"
         else:
             raw_cmd = "r3"
@@ -393,62 +384,91 @@ while True:
     if action == "pickup" or action == "dropoff":
         raw_cmd = "l"
         with_load = not with_load
-    
+
     if raw_cmd == "f":
         motionSteps += 1
 
-    # Send the command
-    packet_tx = packetize(raw_cmd)
-    if packet_tx:
-        transmit(packet_tx)
-    while True:
-        [responses, time_rx] = receive()
-        if responses[0] == raw_cmd:
-            continue
-        if responses[0] == "+" or responses[0] is not False:
-            break
-    time.sleep(0.5)
-    # Send the command
-    packet_tx = packetize(raw_cmd)
-    if packet_tx:
-        transmit(packet_tx)
-    while True:
-        [responses, time_rx] = receive()
-        if responses[0] == raw_cmd:
-            continue
-        if responses[0] == "+" or responses[0] is not False:
-            break
-    time.sleep(0.5)
+    # Send the command(s)
+    if raw_cmd == "f":
+        robot.obstacleAvoidance()
+        time.sleep(0.5)
+        robot.obstacleAvoidance()
+        time.sleep(0.5)
+    else:
+        robot.sendCommand(raw_cmd)
+        time.sleep(0.5)
 
     ############### Histogram Localization Update ##############
-    
+
     # Ping Sensors
-    raw_cmd = "p"
-    packet_tx = packetize(raw_cmd)
-    if packet_tx:
-        transmit(packet_tx)
-    while True:
-        [responses, time_rx] = receive()
-        if responses[0] == raw_cmd:
-            continue
-        if responses[0] != "+" or responses[0] is not False:
-            break
-    print(f"Sensor Ping Responses at {time_rx}: {responses}")
-    last_sensor_readings = [
-        float(responses[i]) for i in range(len(responses) - 1)
-    ]
-    current_frontend = int(responses[-1])
-    
+    robot.pingSensors()
+    print(f"Sensor Ping Responses: {robot.ToFDistancesRaw}")
+
     time.sleep(0.5)
-    
+
     # Update motion steps and perform prediction step if necessary
-    if last_sensor_readings[current_frontend] != 0 and last_sensor_readings[current_frontend] < 70:
+    if (
+        robot.ToFDistancesRaw[robot.currentFrontend] != 0
+        and robot.ToFDistancesRaw[robot.currentFrontend] < 70
+    ):
         motionSteps = 2  # Force an update if an obstacle is detected close ahead
     if motionSteps >= 2:
-        observed_block_type = block_type_detected(last_sensor_readings)
+        observed_block_type = block_type_detected(robot.ToFDistancesRaw)
         print(f"\nDetected block type: {observed_block_type}\n")
         localizer.update_belief(observed_block_type)
         localizer.visualize_belief()
         motionSteps = 0
         updateMotion = True
-    print (f"\nMotion steps since last update: {motionSteps}\n")
+    print(f"\nMotion steps since last update: {motionSteps}\n")
+
+while True:
+    print("Manual Control Mode")
+    print(
+        "Commands: 'w' = forward, 's' = backward, 'a' = left, 'd' = right, 'l' = loadAction, 'q' = quit"
+    )
+    print(
+        "'u' = update histogram localization, 'p' = ping sensors, 'us' = ping ultrasonics"
+    )
+    val = input("Enter Command: ")
+    while True:
+        robot.sendCommand("f5000")
+        time.sleep(1000)
+        robot.sendCommand("r500")
+        robot.sendCommand("b500")
+        robot.sendCommand("l500")
+    if val not in ["w", "l", "p", "u", "us", "q"]:
+        duration = input("Enter duration in milliseconds: ")
+    if val.lower() == "q":
+        break
+    if val.lower() == "w":
+        robot.obstacleAvoidance()
+        time.sleep(0.5)
+    if val.lower() == "s":
+        robot.sendCommand(f"b{duration}")
+    if val.lower() == "a":
+        robot.sendCommand(f"l{duration}")
+    if val.lower() == "d":
+        robot.sendCommand(f"r{duration}")
+    if val.lower() == "l":
+        robot.sendCommand("g")
+    if val.lower() == "p":
+        robot.pingSensors()
+    if val.lower() == "us":
+        robot.pingSensors(raw_cmd="u")
+    if val.lower() == "u":
+        observed_block_type = block_type_detected(robot.ToFDistancesRaw)
+        print(gameMap)
+        type = input(
+            f"\nDetected block type: {observed_block_type}\n Enter block type to update histogram localization: "
+        )
+        localizer.update_belief(type)
+        localizer.visualize_belief()
+        movement = input("Enter movement to predict (f, l, r, b): ")
+        movement_map = {
+            "f": "forward",
+            "b": "backward",
+            "l": "left",
+            "r": "right",
+        }
+        localizer.predict_motion(movement_map[movement])
+        localizer.visualize_belief()
