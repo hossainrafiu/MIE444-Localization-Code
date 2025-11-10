@@ -61,11 +61,17 @@ default_map_lines = [
 
 # Split into 12 length segments
 default_likely_start_lines = [
-    # (6,6) to (6,18)
+    # (6,6) to (6,42)
     LineString([(6, 6), (6, 18)]),
+    LineString([(6, 18), (6, 30)]),
+    LineString([(6, 30), (6, 42)]),
+    # Loading zone
+    LineString([(6, 30), (18, 30)]),
+    LineString([(18, 30), (18, 42)]),
     # (30, 6) to (30, 18)
     LineString([(30, 6), (30, 18)]),
-    # (24,42) to (42,42)
+    # (6,42) to (42,42)
+    LineString([(6, 42), (30, 42)]),
     LineString([(18, 42), (30, 42)]),
     LineString([(30, 42), (42, 42)]),
     # (42,42) to (42,30) to (66,30) to (66,6) to (6,6)
@@ -307,7 +313,7 @@ class ParticleFilter:
             p = predicted[i]
             a = actual[i]
             # print(f"Predicted: {p}, Actual: {a}")
-            if (a > self.sensor_range and p == -1):
+            if a > self.sensor_range and p == -1:
                 continue
             if abs(p - a) > 6:
                 return 0.0  # Discard particles with large errors
