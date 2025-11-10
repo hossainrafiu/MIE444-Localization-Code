@@ -160,10 +160,12 @@ class ParticleFilter:
                 x = random.uniform(line.coords[0][0], line.coords[1][0])
                 y = random.uniform(line.coords[0][1], line.coords[1][1])
                 # decide direction based on line orientation
-                if line.coords[0][0] == line.coords[1][0]:  # vertical line
-                    theta = random.choice([math.pi / 2, 3 * math.pi / 2])
-                else:  # horizontal line
-                    theta = random.choice([0, math.pi])
+                # if line.coords[0][0] == line.coords[1][0]:  # vertical line
+                #     theta = random.choice([math.pi / 2, 3 * math.pi / 2])
+                # else:  # horizontal line
+                #     theta = random.choice([0, math.pi])
+                # Random in 4 directions
+                theta = random.choice([0, math.pi / 2, math.pi, 3 * math.pi / 2])
                 weight = 1e-1  # small initial weight
                 self.particles.append(Particle(x, y, theta, weight))
 

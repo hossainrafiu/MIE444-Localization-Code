@@ -271,6 +271,17 @@ def shift_sensor_readings(sensor_readings: list, current_frontend: int) -> list:
         shifted_readings[i] = sensor_readings[(i + current_frontend) % 4]
     return shifted_readings
 
+def get_delta() -> tuple:
+    """Get the delta x, y, and theta based on the current frontend and action."""
+    delta_x = (
+            3 if robot.currentFrontend == 0 else -3 if robot.currentFrontend == 2 else 0
+        )
+    delta_y = (
+        -3 if robot.currentFrontend == 1 else 3 if robot.currentFrontend == 3 else 0
+    )
+    delta_theta = 0
+    return (delta_x, delta_y, delta_theta)
+
 
 ## TESTING
 
@@ -319,7 +330,7 @@ except serial.SerialException:
 if SIMULATE:
     TRANSMIT_PAUSE = 0.1
 else:
-    TRANSMIT_PAUSE = 0.5
+    TRANSMIT_PAUSE = 0.1
 
 MANUAL_CONTROL = True
 
@@ -352,7 +363,8 @@ plt.ion()
 plt.show()
 
 # Ping Sensors
-robot.pingSensors()
+# robot.pingSensors()
+# robot.sendCommand("c")  # Centering
 
 while not MANUAL_CONTROL:
     # Pathfinding
@@ -385,6 +397,7 @@ while not MANUAL_CONTROL:
         robot.obstacleAvoidance()  # To do ping sensors and avoid corners when turning
     prev_action = action
 
+    raw_cmd = "f"
     if action == "":
         print(
             "Warning: Low confidence in current position estimate. Just move forward."
@@ -475,6 +488,8 @@ while not MANUAL_CONTROL:
         if not omnidrive_mode
         else robot.ToFDistancesRaw
     )
+    # Convert mm to inches
+    sensor_readings = [x / 25.4 for x in sensor_readings]
     print(sensor_readings)
 
     # Swap sensor readings 1 and 3 for correct orientation in particle filter
@@ -505,50 +520,100 @@ while not MANUAL_CONTROL:
     pf.plot_estimated_position(ax, estimated_pos)
     plt.show()
 
-while not MANUAL_CONTROL:
+while MANUAL_CONTROL:
     print(
-        "Commands: 'w' = obstacle avoidance, 'a' = turn left, 's' = move backward, 'd' = turn right, 'q' = rotate CCW, 'e' = rotate CW,\n"
+        "Commands: 'w' = obstacle avoidance, 'wasd' = omni motion, 'yghj' = normal motion, 'q' = rotate CCW, 'e' = rotate CW,\n"
     )
     print(
-        "'l' = load/unload, 'p' = ping sensors, 'u' = update localization, 'us' = ultrasonic sensors, 'c' = centering, 'f' = move forward\n"
+        "'l' = load/unload, 'p' = ping sensors, 'u' = update localization, 'us' = ultrasonic sensors, 'c' = centering\n"
     )
     val = input("Enter command: ")
-    if val not in ["w", "l", "p", "u", "us", "c"]:
+    duration = ""
+    if val not in ["w", "l", "p", "u", "us", "c", "o", "=", "z","x", "w", "a", "s", "d"]:
         duration = input("Enter duration in milliseconds: ")
-    if val.lower() == "w":
-        robot.obstacleAvoidance()
-    elif val.lower() == "l":
+    if val.lower() == "l":
         robot.sendCommand("g")
     elif val.lower() == "p":
         robot.pingSensors()
-        robot.pingSensors("u")
+        robot.pingSensors("u2")
         plt.subplot(1, 2, 2)
+        plt.cla()
         robot.plotSensorData(plt=plt)
     elif val.lower() == "u":
-        delta_x = input("Enter delta x in inches: ")
-        delta_y = input("Enter delta y in inches: ")
-        pf.move_particles(float(delta_x), float(delta_y), 0)
-        robot.pingSensors()
-        pf.update_weights_improved(robot.ToFDistancesRaw)
+        # delta_x = input("Enter delta x in inches: ")
+        # delta_y = input("Enter delta y in inches: ")
+        delta_x, delta_y, delta_theta = get_delta()
+        print(f"Moving particles by Δx={delta_x}, Δy={delta_y}, Δθ={delta_theta}")
+        pf.move_particles(delta_x, delta_y, delta_theta)
+        # robot.pingSensors()
+        sensor_readings = [x / 25.4 for x in robot.ToFDistancesRaw]  # Convert mm to inches
+        sensor_readings[1], sensor_readings[3] = sensor_readings[3], sensor_readings[1]
+        pf.update_weights_improved(sensor_readings)
         pf.resample_particles_improved()
         plt.subplot(1, 2, 1)
         ax = plt.gca()
         pf.plot_particles(ax)
         pf.plot_estimated_position(ax, pf.estimate_position())
         plt.subplot(1, 2, 2)
+        plt.cla()
         robot.plotSensorData(plt=plt)
     elif val.lower() == "c":
         robot.sendCommand("c")
+    elif val.lower() == "o":
+        robot.sendCommand("o")
+    elif val.lower() == "z":
+        robot.sendCommand("z")
+    elif val.lower() == "x":
+        robot.sendCommand("x")
 
-    elif val.lower() == "f":
+    elif val.lower() == "y":
         robot.sendCommand(f"f{duration}")
-    elif val.lower() == "a":
+    elif val.lower() == "g":
         robot.sendCommand(f"a{duration}")
-    elif val.lower() == "s":
+    elif val.lower() == "h":
         robot.sendCommand(f"s{duration}")
-    elif val.lower() == "d":
+    elif val.lower() == "j":
         robot.sendCommand(f"d{duration}")
     elif val.lower() == "q":
         robot.sendCommand(f"q{duration}")
     elif val.lower() == "e":
         robot.sendCommand(f"e{duration}")
+    elif val.lower() == "=":
+        SER.close()
+        break   
+    elif val.lower() == "w":
+        if robot.currentFrontend != 0:
+            robot.sendCommand("r0")
+        else:
+            robot.obstacleAvoidance(ping=False, duration=900)
+        robot.pingSensors()
+        plt.subplot(1, 2, 2)
+        plt.cla()
+        robot.plotSensorData(plt=plt)
+    elif val.lower() == "a":
+        if robot.currentFrontend != 3:
+            robot.sendCommand("r3")
+        else:
+            robot.obstacleAvoidance(ping=False, duration=800)
+        robot.pingSensors()
+        plt.subplot(1, 2, 2)
+        plt.cla()
+        robot.plotSensorData(plt=plt)
+    elif val.lower() == "s":
+        if robot.currentFrontend != 2:
+            robot.sendCommand("r2")
+        else:
+            robot.obstacleAvoidance(ping=False, duration=900)
+        robot.pingSensors()
+        plt.subplot(1, 2, 2)
+        plt.cla()
+        robot.plotSensorData(plt=plt)
+    elif val.lower() == "d":
+        if robot.currentFrontend != 1:
+            robot.sendCommand("r1")
+        else:
+            robot.obstacleAvoidance(ping=False, duration=800)
+        robot.pingSensors()
+        plt.subplot(1, 2, 2)
+        plt.cla()
+        robot.plotSensorData(plt=plt)

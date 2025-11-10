@@ -258,7 +258,7 @@ PORT_TX = 61200  # The port used by the *CLIENT* to receive
 PORT_RX = 61201  # The port used by the *CLIENT* to send data
 
 ### Serial Setup ###
-BAUDRATE = 115200  # Baudrate in bps
+BAUDRATE = 9600  # Baudrate in bps
 PORT_SERIAL = "COM8"  # COM port identification
 TIMEOUT_SERIAL = 3  # Serial port timeout, in seconds
 
@@ -279,10 +279,13 @@ else:
     SOURCE = "serial device " + PORT_SERIAL
 try:
     SER = serial.Serial(PORT_SERIAL, BAUDRATE, timeout=TIMEOUT_SERIAL)
+    print(f"Connected to {SOURCE} at {BAUDRATE} bps.")
 except serial.SerialException:
     print(
         f"Serial connection was refused.\nEnsure {PORT_SERIAL} is the correct port and nothing else is connected to it."
     )
+    while True:
+        pass
 
 ### Pause time after sending messages
 if SIMULATE:
@@ -306,14 +309,14 @@ unload_drop_off_location = [3, 7]  # (row, col)
 updateMotion = False
 
 localizer.print_belief_summary()
-localizer.visualize_belief()
+localizer.visualize_belief(plt)
 
-if True:
-    robot.pingSensors()
-    observed_block_type = block_type_detected(robot.ToFDistancesRaw)
-    print(f"Detected block type: {observed_block_type}")
-    localizer.update_belief(observed_block_type)
-    localizer.visualize_belief()
+# if True:
+#     robot.pingSensors()
+#     observed_block_type = block_type_detected(robot.ToFDistancesRaw)
+#     print(f"Detected block type: {observed_block_type}")
+#     localizer.update_belief(observed_block_type)
+#     localizer.visualize_belief(plt)
 
 while not MANUAL_CONTROL:
     # Pathfinding
@@ -336,7 +339,7 @@ while not MANUAL_CONTROL:
         if updateMotion:
             localizer.predict_motion(action)
             print("\n" + action + "\n")
-            localizer.visualize_belief()
+            localizer.visualize_belief(plt)
             updateMotion = False
     else:
         action = ""
@@ -352,9 +355,10 @@ while not MANUAL_CONTROL:
             )
             localizer.predict_motion(motion)
             print("\n" + motion + "\n")
-            localizer.visualize_belief()
+            localizer.visualize_belief(plt)
             updateMotion = False
 
+    raw_cmd = "f"
     if action == "":
         print(
             "Warning: Low confidence in current position estimate. Just move forward."
@@ -417,59 +421,108 @@ while not MANUAL_CONTROL:
         observed_block_type = block_type_detected(robot.ToFDistancesRaw)
         print(f"\nDetected block type: {observed_block_type}\n")
         localizer.update_belief(observed_block_type)
-        localizer.visualize_belief()
+        localizer.visualize_belief(plt)
         motionSteps = 0
         updateMotion = True
     print(f"\nMotion steps since last update: {motionSteps}\n")
 
 while MANUAL_CONTROL:
     print(
-        "Commands: 'w' = obstacle avoidance, 'a' = turn left, 's' = move backward, 'd' = turn right, 'q' = rotate CCW, 'e' = rotate CW,\n"
+        "Commands: 'w' = obstacle avoidance, 'wasd' = omni motion, 'yghj' = normal motion, 'q' = rotate CCW, 'e' = rotate CW,\n"
     )
     print(
-        "'l' = load/unload, 'p' = ping sensors, 'u' = update localization, 'us' = ultrasonic sensors, 'c' = centering, 'f' = move forward\n"
+        "'l' = load/unload, 'p' = ping sensors, 'u' = update localization, 'us' = ultrasonic sensors, 'c' = centering\n"
     )
     val = input("Enter command: ")
-    if val not in ["w", "l", "p", "u", "us", "c"]:
+    duration = ""
+    if val not in ["w", "l", "p", "u", "us", "c", "o", "=", "z","x", "w", "a", "s", "d"]:
         duration = input("Enter duration in milliseconds: ")
-    if val.lower() == "w":
-        robot.obstacleAvoidance()
-    elif val.lower() == "l":
+    if val.lower() == "l":
         robot.sendCommand("g")
     elif val.lower() == "p":
         robot.pingSensors()
-        robot.pingSensors("u")
+        robot.pingSensors("u2")
         plt.subplot(1, 2, 2)
+        plt.cla()
         robot.plotSensorData(plt=plt)
     elif val.lower() == "c":
         robot.sendCommand("c")
+    elif val.lower() == "o":
+        robot.sendCommand("o")
+    elif val.lower() == "z":
+        robot.sendCommand("z")
+    elif val.lower() == "x":
+        robot.sendCommand("x")
 
-    elif val.lower() == "f":
+    elif val.lower() == "y":
         robot.sendCommand(f"f{duration}")
-    elif val.lower() == "a":
+    elif val.lower() == "g":
         robot.sendCommand(f"a{duration}")
-    elif val.lower() == "s":
+    elif val.lower() == "h":
         robot.sendCommand(f"s{duration}")
-    elif val.lower() == "d":
+    elif val.lower() == "j":
         robot.sendCommand(f"d{duration}")
     elif val.lower() == "q":
         robot.sendCommand(f"q{duration}")
     elif val.lower() == "e":
         robot.sendCommand(f"e{duration}")
-    if val.lower() == "u":
+    elif val.lower() == "=":
+        SER.close()
+        break   
+    elif val.lower() == "w":
+        if robot.currentFrontend != 0:
+            robot.sendCommand("r0")
+        else:
+            robot.obstacleAvoidance(ping=False)
+        robot.pingSensors()
+        robot.pingSensors("u2")
+        plt.subplot(1, 2, 2)
+        plt.cla()
+        robot.plotSensorData(plt=plt)
+    elif val.lower() == "a":
+        if robot.currentFrontend != 3:
+            robot.sendCommand("r3")
+        else:
+            robot.obstacleAvoidance(ping=False)
+        robot.pingSensors()
+        robot.pingSensors("u2")
+        plt.subplot(1, 2, 2)
+        plt.cla()
+        robot.plotSensorData(plt=plt)
+    elif val.lower() == "s":
+        if robot.currentFrontend != 2:
+            robot.sendCommand("r2")
+        else:
+            robot.obstacleAvoidance(ping=False)
+        robot.pingSensors()
+        robot.pingSensors("u2")
+        plt.subplot(1, 2, 2)
+        plt.cla()
+        robot.plotSensorData(plt=plt)
+    elif val.lower() == "d":
+        if robot.currentFrontend != 1:
+            robot.sendCommand("r1")
+        else:
+            robot.obstacleAvoidance(ping=False)
+        robot.pingSensors()
+        robot.pingSensors("u2")
+        plt.subplot(1, 2, 2)
+        plt.cla()
+        robot.plotSensorData(plt=plt)
+    elif val.lower() == "u":
         observed_block_type = block_type_detected(robot.ToFDistancesRaw)
         print(gameMap)
         type = input(
             f"\nDetected block type: {observed_block_type}\n Enter block type you want to update histogram localization with: "
         )
         localizer.update_belief(type)
-        localizer.visualize_belief()
+        localizer.visualize_belief(plt)
         movement = input("Enter movement to predict (f, l, r, b): ")
         movement_map = {
-            "f": "forward",
-            "b": "backward",
-            "l": "left",
-            "r": "right",
+            "w": "forward",
+            "s": "backward",
+            "a": "left",
+            "d": "right",
         }
         localizer.predict_motion(movement_map[movement])
-        localizer.visualize_belief()
+        localizer.visualize_belief(plt)
