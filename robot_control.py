@@ -6,7 +6,7 @@ RECURSIVE_ALLIGN = False
 class RobotDrive:
     def __init__(self, packetize, transmit, receive):
         self.verboseConsole = True
-        self.RESPONSE_TIMEOUT = 3  # seconds
+        self.RESPONSE_TIMEOUT = 6  # seconds
         self.MOVELEFTWHENPOSSIBLE = False
         self.MOVERIGHTWHENPOSSIBLE = False
         self.OMNIWHEELDRIVE = True
@@ -61,7 +61,8 @@ class RobotDrive:
         packet_tx = self.packetize(raw_cmd)
         if packet_tx:
             self.transmit(packet_tx)
-        while True:
+        start_time = time.time()
+        while time.time() - start_time < self.RESPONSE_TIMEOUT:
             [responses, time_rx] = self.receive()
             if responses[0] == raw_cmd:
                 continue
@@ -130,7 +131,7 @@ class RobotDrive:
                 new_front = (self.currentFrontend + 3) % 4
                 self.sendCommand(f"r{new_front}")
             else:
-                self.sendCommand("r900")
+                self.sendCommand("q900")
             self.MOVELEFTWHENPOSSIBLE = False
 
     def moveRightWhenPossible(self):
@@ -145,7 +146,7 @@ class RobotDrive:
                 new_front = (self.currentFrontend + 1) % 4
                 self.sendCommand(f"r{new_front}")
             else:
-                self.sendCommand("r-900")
+                self.sendCommand("e900")
             self.MOVERIGHTWHENPOSSIBLE = False
 
     def avoidCornersIfTurning(self):
@@ -171,7 +172,7 @@ class RobotDrive:
         # Obstacle detected in front, stop and back up
         if self.verboseConsole:
             print("Obstacle detected in front, backing up and rotating.")
-        self.sendCommand("b100")
+        self.sendCommand("s100")
         if self.OMNIWHEELDRIVE:
             if self.ToFDistances[1] < 150:
                 new_front = (self.currentFrontend + 3) % 4
@@ -184,12 +185,12 @@ class RobotDrive:
                 # Obstacle on the right, rotate ACW
                 if self.verboseConsole:
                     print("Obstacle detected on the right, rotating counter-clockwise.")
-                self.sendCommand("r900")
+                self.sendCommand("q900")
             else:
                 # No obstacle on the right, rotate CW
                 if self.verboseConsole:
                     print("No obstacle on the right, rotating clockwise.")
-                self.sendCommand("r-900")
+                self.sendCommand("e900")
 
     def avoidSideWalls(self):
         if self.ToFDistances[1] < 60:
@@ -201,7 +202,7 @@ class RobotDrive:
             movement_duration = max(
                 60 - self.ToFDistances[1] * 10, 100
             )  # Adjust duration based on distance
-            self.sendCommand(f"l{movement_duration}")
+            self.sendCommand(f"a{movement_duration}")
             return True
 
         elif self.ToFDistances[3] < 60:
@@ -213,7 +214,7 @@ class RobotDrive:
             movement_duration = max(
                 60 - self.ToFDistances[3] * 10, 100
             )  # Adjust duration based on distance
-            self.sendCommand(f"r{movement_duration}")
+            self.sendCommand(f"d{movement_duration}")
             return True
         return False
 
@@ -230,7 +231,7 @@ class RobotDrive:
             movement_duration = max(
                 self.ToFDistances[3] - 90, 100
             )  # Adjust duration based on distance
-            self.sendCommand(f"l{movement_duration}")
+            self.sendCommand(f"a{movement_duration}")
 
         elif (
             self.ToFDistances[1] > 90
@@ -244,7 +245,7 @@ class RobotDrive:
             movement_duration = max(
                 self.ToFDistances[1] - 90, 100
             )  # Adjust duration based on distance
-            self.sendCommand(f"r{movement_duration}")
+            self.sendCommand(f"d{movement_duration}")
 
     def obstacleAvoidance(self):
         if self.verboseConsole:
@@ -269,3 +270,48 @@ class RobotDrive:
             print("Path clear, moving forward.")
         self.sendCommand("f500")
         time.sleep(0.5)
+
+    def plotSensorData(self, plt):
+        sensors = []
+        if self.ToFDistancesRaw[0] < 1500:
+            sensors.append((0, self.ToFDistancesRaw[0]))
+        if self.ToFDistancesRaw[3] < 1500:
+            sensors.append((0, -self.ToFDistancesRaw[3]))
+        if self.ToFDistancesRaw[2] < 1500:
+            sensors.append((-self.ToFDistancesRaw[2], 0))
+        if self.ToFDistancesRaw[1] < 1500:
+            sensors.append((self.ToFDistancesRaw[1], 0))
+        USsensors = []
+        if self.USDistancesRaw[0] > 0:
+            USsensors.append((-self.USDistancesRaw[0], 100))
+        if self.USDistancesRaw[1] > 0:
+            USsensors.append((self.USDistancesRaw[1], 100))
+        if self.USDistancesRaw[2] > 0:
+            USsensors.append((100, self.USDistancesRaw[2]))
+        if self.USDistancesRaw[3] > 0:
+            USsensors.append((100, -self.USDistancesRaw[3]))
+        if self.USDistancesRaw[4] > 0:
+            USsensors.append((self.USDistancesRaw[4], -100))
+        if self.USDistancesRaw[5] > 0:
+            USsensors.append((-self.USDistancesRaw[5], -100))
+        if self.USDistancesRaw[6] > 0:
+            USsensors.append((-100, -self.USDistancesRaw[6]))
+        if self.USDistancesRaw[7] > 0:
+            USsensors.append((-100, self.USDistancesRaw[7]))
+        plt.scatter(
+            [s[0] for s in sensors],
+            [s[1] for s in sensors],
+            color="blue",
+            label="ToF Sensors",
+        )
+        plt.scatter(
+            [s[0] for s in USsensors],
+            [s[1] for s in USsensors],
+            color="red",
+            label="Ultrasonic Sensors",
+        )
+        plt.scatter(0, 0, color="green", label="Robot Position")
+        plt.title("Sensor Readings Visualization")
+        plt.legend()
+        plt.grid(True)
+        plt.show()

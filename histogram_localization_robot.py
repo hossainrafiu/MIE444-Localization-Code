@@ -433,9 +433,9 @@ while True:
     while True:
         robot.sendCommand("f5000")
         time.sleep(1000)
-        robot.sendCommand("r500")
-        robot.sendCommand("b500")
-        robot.sendCommand("l500")
+        robot.sendCommand("d500")
+        robot.sendCommand("s500")
+        robot.sendCommand("a500")
     if val not in ["w", "l", "p", "u", "us", "q"]:
         duration = input("Enter duration in milliseconds: ")
     if val.lower() == "q":
@@ -444,11 +444,11 @@ while True:
         robot.obstacleAvoidance()
         time.sleep(0.5)
     if val.lower() == "s":
-        robot.sendCommand(f"b{duration}")
+        robot.sendCommand(f"s{duration}")
     if val.lower() == "a":
-        robot.sendCommand(f"l{duration}")
+        robot.sendCommand(f"a{duration}")
     if val.lower() == "d":
-        robot.sendCommand(f"r{duration}")
+        robot.sendCommand(f"d{duration}")
     if val.lower() == "l":
         robot.sendCommand("g")
     if val.lower() == "p":

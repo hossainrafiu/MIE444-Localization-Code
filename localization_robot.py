@@ -281,7 +281,7 @@ PORT_RX = 61201  # The port used by the *CLIENT* to send data
 ### Serial Setup ###
 BAUDRATE = 9600  # Baudrate in bps
 PORT_SERIAL = "COM8"  # COM port identification
-TIMEOUT_SERIAL = 1  # Serial port timeout, in seconds
+TIMEOUT_SERIAL = 3  # Serial port timeout, in seconds
 
 ### Packet Framing values ###
 FRAMESTART = "["
@@ -305,12 +305,14 @@ except serial.SerialException:
     print(
         f"Serial connection was refused.\nEnsure {PORT_SERIAL} is the correct port and nothing else is connected to it."
     )
+    while True:
+        pass
 
 ### Pause time after sending messages
 if SIMULATE:
     TRANSMIT_PAUSE = 0.1
 else:
-    TRANSMIT_PAUSE = 0
+    TRANSMIT_PAUSE = 0.5
 
 
 ############## Main section for the communication client ##############
@@ -334,7 +336,8 @@ omnidrive_mode = True
 
 time.sleep(5)  # Wait a bit for everything to start up
 
-plt.figure(figsize=(8, 6))
+plt.figure(1, figsize=(8, 6), clear=True)
+plt.subplot(1, 2, 1)
 ax = plt.gca()
 pf.plot_particles(ax)
 plt.ion()
@@ -343,7 +346,7 @@ plt.show()
 # Ping Sensors
 robot.pingSensors()
 
-while True:
+while False:
     # Pathfinding
     x, y, theta = pf.estimate_position()
     confidence = pf.get_confidence()
@@ -493,3 +496,51 @@ while True:
     pf.plot_particles(ax)
     pf.plot_estimated_position(ax, estimated_pos)
     plt.show()
+
+while True:
+    print(
+        "Commands: 'w' = obstacle avoidance, 'a' = turn left, 's' = move backward, 'd' = turn right, 'q' = rotate CCW, 'e' = rotate CW,\n"
+    )
+    print(
+        "'l' = load/unload, 'p' = ping sensors, 'u' = update localization, 'us' = ultrasonic sensors, 'c' = centering, 'f' = move forward\n"
+    )
+    val = input("Enter command: ")
+    if val not in ["w", "l", "p", "u", "us", "c"]:
+        duration = input("Enter duration in milliseconds: ")
+    if val.lower() == "w":
+        robot.obstacleAvoidance()
+    elif val.lower() == "l":
+        robot.sendCommand("g")
+    elif val.lower() == "p":
+        robot.pingSensors()
+        robot.pingSensors("u")
+        plt.subplot(1, 2, 2)
+        robot.plotSensorData(plt=plt)
+    elif val.lower() == "u":
+        delta_x = input("Enter delta x in inches: ")
+        delta_y = input("Enter delta y in inches: ")
+        pf.move_particles(float(delta_x), float(delta_y), 0)
+        robot.pingSensors()
+        pf.update_weights_improved(robot.ToFDistancesRaw)
+        pf.resample_particles_improved()
+        plt.subplot(1, 2, 1)
+        ax = plt.gca()
+        pf.plot_particles(ax)
+        pf.plot_estimated_position(ax, pf.estimate_position())
+        plt.subplot(1, 2, 2)
+        robot.plotSensorData(plt=plt)
+    elif val.lower() == "c":
+        robot.sendCommand("c")
+
+    elif val.lower() == "f":
+        robot.sendCommand(f"f{duration}")
+    elif val.lower() == "a":
+        robot.sendCommand(f"a{duration}")
+    elif val.lower() == "s":
+        robot.sendCommand(f"s{duration}")
+    elif val.lower() == "d":
+        robot.sendCommand(f"d{duration}")
+    elif val.lower() == "q":
+        robot.sendCommand(f"q{duration}")
+    elif val.lower() == "e":
+        robot.sendCommand(f"e{duration}")
