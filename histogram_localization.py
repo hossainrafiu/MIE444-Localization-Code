@@ -267,6 +267,7 @@ class HistogramLocalization:
 
         plt.tight_layout()
         plt.show()
+        plt.pause(0.1)
 
     def print_belief_summary(self):
         """Print a summary of the current belief state."""

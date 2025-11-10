@@ -158,7 +158,7 @@ def depacketize(data_raw: str):
 
         # return cmd_list
     else:
-        return [[False, ""]]
+        return [False]
 
 
 def packetize(data: str):
@@ -226,7 +226,7 @@ def block_type_detected(sensor_readings: list) -> int:
     """
 
     # Define thresholds for wall detection
-    WALL_THRESHOLD = 100  # Distance in mm to consider a wall detected
+    WALL_THRESHOLD = 180  # Distance in mm to consider a wall detected
 
     # Determine which walls are detected
     walls = [reading < WALL_THRESHOLD for reading in sensor_readings]
@@ -258,8 +258,8 @@ PORT_RX = 61201  # The port used by the *CLIENT* to send data
 
 ### Serial Setup ###
 BAUDRATE = 9600  # Baudrate in bps
-PORT_SERIAL = "COM3"  # COM port identification
-TIMEOUT_SERIAL = 1  # Serial port timeout, in seconds
+PORT_SERIAL = "COM8"  # COM port identification
+TIMEOUT_SERIAL = 3  # Serial port timeout, in seconds
 
 ### Packet Framing values ###
 FRAMESTART = "["
@@ -299,28 +299,39 @@ motionSteps = 0  # Update Localization every 4 motion steps
 load_pick_up_location = [1, 1]  # (row, col)
 with_load = False
 unload_drop_off_location = [3, 7]  # (row, col)
+updateMotion = False
 
 last_sensor_readings = [0, 0, 0, 0]
 current_frontend = 0  # 0: forward, 1: right, 2: backward, 3: left
 
-time.sleep(5)  # Wait a bit for everything to start up
-
 localizer.print_belief_summary()
 localizer.visualize_belief()
 
-while True:
+if True:
     # Ping Sensors
     raw_cmd = "p"
     packet_tx = packetize(raw_cmd)
     if packet_tx:
         transmit(packet_tx)
-    [responses, time_rx] = receive()
+    while True:
+        [responses, time_rx] = receive()
+        if responses[0] == raw_cmd:
+            continue
+        if responses[0] != "+" or responses[0] is not False:
+            break
+    
     print(f"Sensor Ping Responses at {time_rx}: {responses}")
     last_sensor_readings = [
         float(responses[i]) + 2.5 for i in range(len(responses) - 1)
     ]
-    current_frontend = responses[-1]
+    current_frontend = int(responses[-1])
+    
+    observed_block_type = block_type_detected(last_sensor_readings)
+    print(f"Detected block type: {observed_block_type}")
+    localizer.update_belief(observed_block_type)
+    localizer.visualize_belief()
 
+while True:
     # Pathfinding
     current_r, current_c, current_ori = localizer.get_most_likely_position()
     position_prob = localizer.get_position_probability(current_r, current_c)
@@ -338,32 +349,43 @@ while True:
             pickup=load_pick_up_location,
             dropoff=unload_drop_off_location,
         )
+        if updateMotion:
+            localizer.predict_motion(action)
+            print("\n" + action + "\n")
+            localizer.visualize_belief()
+            updateMotion = False
     else:
         action = ""
+        if updateMotion:
+            motion = "forward" if current_frontend == 0 else "right" if current_frontend == 1 else "backwards" if current_frontend==2 else "left"
+            localizer.predict_motion(motion)
+            print("\n" + motion + "\n")
+            localizer.visualize_belief()
+            updateMotion = False
 
     if action == "":
         print(
             "Warning: Low confidence in current position estimate. Just move forward."
         )
-        raw_cmd = "w"
+        raw_cmd = "f"
     if action == "forward":
         if current_frontend == 0:
-            raw_cmd = "w"
+            raw_cmd = "f"
         else:
             raw_cmd = "r0"
     if action == "right":
         if current_frontend == 1:
-            raw_cmd = "w"
+            raw_cmd = "f"
         else:
             raw_cmd = "r1"
     if action == "backward":
         if current_frontend == 2:
-            raw_cmd = "w"
+            raw_cmd = "f"
         else:
             raw_cmd = "r2"
     if action == "left":
         if current_frontend == 3:
-            raw_cmd = "w"
+            raw_cmd = "f"
         else:
             raw_cmd = "r3"
     if action == "wait":
@@ -371,27 +393,51 @@ while True:
     if action == "pickup" or action == "dropoff":
         raw_cmd = "l"
         with_load = not with_load
+    
+    if raw_cmd == "f":
+        motionSteps += 1
 
     # Send the command
     packet_tx = packetize(raw_cmd)
     if packet_tx:
         transmit(packet_tx)
-
-    # Receive the response
-    [responses, time_rx] = receive()
-    print(f"Command Response at {time_rx}: {responses}")
-
-    time.sleep(0.5)  # Wait a bit before requesting all sensor readings
+    while True:
+        [responses, time_rx] = receive()
+        if responses[0] == raw_cmd:
+            continue
+        if responses[0] == "+" or responses[0] is not False:
+            break
+    time.sleep(0.5)
 
     ############### Histogram Localization Update ##############
-
+    
+    # Ping Sensors
+    raw_cmd = "p"
+    packet_tx = packetize(raw_cmd)
+    if packet_tx:
+        transmit(packet_tx)
+    while True:
+        [responses, time_rx] = receive()
+        if responses[0] == raw_cmd:
+            continue
+        if responses[0] != "+" or responses[0] is not False:
+            break
+    print(f"Sensor Ping Responses at {time_rx}: {responses}")
+    last_sensor_readings = [
+        float(responses[i]) for i in range(len(responses) - 1)
+    ]
+    current_frontend = int(responses[-1])
+    
+    time.sleep(0.5)
+    
     # Update motion steps and perform prediction step if necessary
-    if last_sensor_readings[0] != 0 and last_sensor_readings[0] < 70:
-        motionSteps = 8  # Force an update if an obstacle is detected close ahead
-    if action == "w":
-        motionSteps += 1
-    if motionSteps >= 8:
+    if last_sensor_readings[current_frontend] != 0 and last_sensor_readings[current_frontend] < 70:
+        motionSteps = 4  # Force an update if an obstacle is detected close ahead
+    if motionSteps >= 4:
         observed_block_type = block_type_detected(last_sensor_readings)
+        print(f"\nDetected block type: {observed_block_type}\n")
         localizer.update_belief(observed_block_type)
-        localizer.predict_motion(action)
+        localizer.visualize_belief()
         motionSteps = 0
+        updateMotion = True
+    print (f"\nMotion steps since last update: {motionSteps}\n")

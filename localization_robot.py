@@ -430,12 +430,12 @@ while True:
     ############### Particle Filter Update ##############
 
     if raw_cmd == "f":
-        delta_x = 1 if current_frontend == 0 else -1 if current_frontend == 2 else 0
+        delta_x = 3 if current_frontend == 0 else -3 if current_frontend == 2 else 0
     else:
         delta_x = 0
 
     if raw_cmd == "f":
-        delta_y = -1 if current_frontend == 1 else 1 if current_frontend == 3 else 0
+        delta_y = -3 if current_frontend == 1 else 3 if current_frontend == 3 else 0
     else:
         delta_y = 0
 
