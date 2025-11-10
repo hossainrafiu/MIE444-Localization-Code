@@ -408,6 +408,17 @@ while True:
         if responses[0] == "+" or responses[0] is not False:
             break
     time.sleep(0.5)
+    # Send the command
+    packet_tx = packetize(raw_cmd)
+    if packet_tx:
+        transmit(packet_tx)
+    while True:
+        [responses, time_rx] = receive()
+        if responses[0] == raw_cmd:
+            continue
+        if responses[0] == "+" or responses[0] is not False:
+            break
+    time.sleep(0.5)
 
     ############### Histogram Localization Update ##############
     
@@ -432,8 +443,8 @@ while True:
     
     # Update motion steps and perform prediction step if necessary
     if last_sensor_readings[current_frontend] != 0 and last_sensor_readings[current_frontend] < 70:
-        motionSteps = 4  # Force an update if an obstacle is detected close ahead
-    if motionSteps >= 4:
+        motionSteps = 2  # Force an update if an obstacle is detected close ahead
+    if motionSteps >= 2:
         observed_block_type = block_type_detected(last_sensor_readings)
         print(f"\nDetected block type: {observed_block_type}\n")
         localizer.update_belief(observed_block_type)
