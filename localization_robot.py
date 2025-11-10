@@ -314,6 +314,7 @@ if SIMULATE:
 else:
     TRANSMIT_PAUSE = 0.5
 
+MANUAL_CONTROL = True
 
 ############## Main section for the communication client ##############
 
@@ -346,7 +347,7 @@ plt.show()
 # Ping Sensors
 robot.pingSensors()
 
-while False:
+while not MANUAL_CONTROL:
     # Pathfinding
     x, y, theta = pf.estimate_position()
     confidence = pf.get_confidence()
@@ -497,7 +498,7 @@ while False:
     pf.plot_estimated_position(ax, estimated_pos)
     plt.show()
 
-while True:
+while not MANUAL_CONTROL:
     print(
         "Commands: 'w' = obstacle avoidance, 'a' = turn left, 's' = move backward, 'd' = turn right, 'q' = rotate CCW, 'e' = rotate CW,\n"
     )

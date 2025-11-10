@@ -290,6 +290,7 @@ if SIMULATE:
 else:
     TRANSMIT_PAUSE = 0
 
+MANUAL_CONTROL = True
 
 ############## Main section for the communication client ##############
 
@@ -314,7 +315,7 @@ if True:
     localizer.update_belief(observed_block_type)
     localizer.visualize_belief()
 
-while True:
+while not MANUAL_CONTROL:
     # Pathfinding
     current_r, current_c, current_ori = localizer.get_most_likely_position()
     position_prob = localizer.get_position_probability(current_r, current_c)
@@ -421,45 +422,45 @@ while True:
         updateMotion = True
     print(f"\nMotion steps since last update: {motionSteps}\n")
 
-while True:
-    print("Manual Control Mode")
+while MANUAL_CONTROL:
     print(
-        "Commands: 'w' = forward, 's' = backward, 'a' = left, 'd' = right, 'l' = loadAction, 'q' = quit"
+        "Commands: 'w' = obstacle avoidance, 'a' = turn left, 's' = move backward, 'd' = turn right, 'q' = rotate CCW, 'e' = rotate CW,\n"
     )
     print(
-        "'u' = update histogram localization, 'p' = ping sensors, 'us' = ping ultrasonics"
+        "'l' = load/unload, 'p' = ping sensors, 'u' = update localization, 'us' = ultrasonic sensors, 'c' = centering, 'f' = move forward\n"
     )
-    val = input("Enter Command: ")
-    while True:
-        robot.sendCommand("f5000")
-        time.sleep(1000)
-        robot.sendCommand("d500")
-        robot.sendCommand("s500")
-        robot.sendCommand("a500")
-    if val not in ["w", "l", "p", "u", "us", "q"]:
+    val = input("Enter command: ")
+    if val not in ["w", "l", "p", "u", "us", "c"]:
         duration = input("Enter duration in milliseconds: ")
-    if val.lower() == "q":
-        break
     if val.lower() == "w":
         robot.obstacleAvoidance()
-        time.sleep(0.5)
-    if val.lower() == "s":
-        robot.sendCommand(f"s{duration}")
-    if val.lower() == "a":
-        robot.sendCommand(f"a{duration}")
-    if val.lower() == "d":
-        robot.sendCommand(f"d{duration}")
-    if val.lower() == "l":
+    elif val.lower() == "l":
         robot.sendCommand("g")
-    if val.lower() == "p":
+    elif val.lower() == "p":
         robot.pingSensors()
-    if val.lower() == "us":
-        robot.pingSensors(raw_cmd="u")
+        robot.pingSensors("u")
+        plt.subplot(1, 2, 2)
+        robot.plotSensorData(plt=plt)
+    elif val.lower() == "c":
+        robot.sendCommand("c")
+
+    elif val.lower() == "f":
+        robot.sendCommand(f"f{duration}")
+    elif val.lower() == "a":
+        robot.sendCommand(f"a{duration}")
+    elif val.lower() == "s":
+        robot.sendCommand(f"s{duration}")
+    elif val.lower() == "d":
+        robot.sendCommand(f"d{duration}")
+    elif val.lower() == "q":
+        robot.sendCommand(f"q{duration}")
+    elif val.lower() == "e":
+        robot.sendCommand(f"e{duration}")
     if val.lower() == "u":
         observed_block_type = block_type_detected(robot.ToFDistancesRaw)
         print(gameMap)
         type = input(
-            f"\nDetected block type: {observed_block_type}\n Enter block type to update histogram localization: "
+            f"\nDetected block type: {observed_block_type}\n Enter block type you want to update histogram localization with: "
         )
         localizer.update_belief(type)
         localizer.visualize_belief()
