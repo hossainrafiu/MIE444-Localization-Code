@@ -328,6 +328,7 @@ pf = ParticleFilter(
 load_pick_up_location = [1, 1]  # (row, col)
 with_load = False
 unload_drop_off_location = [3, 7]  # (row, col)
+prev_action = ""
 
 omnidrive_mode = True
 
@@ -367,6 +368,11 @@ while True:
         print(path)
     else:
         action = ""
+
+    # Avoid Wall Corners
+    if prev_action != "" and action != prev_action:
+        robot.obstacleAvoidance()  # To do ping sensors and avoid corners when turning
+    prev_action = action
 
     if action == "":
         print(
