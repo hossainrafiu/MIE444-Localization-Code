@@ -274,13 +274,13 @@ class RobotDrive:
     def plotSensorData(self, plt):
         sensors = []
         if self.ToFDistancesRaw[0] < 1500:
-            sensors.append((0, self.ToFDistancesRaw[0]))
+            sensors.append((0, self.ToFDistancesRaw[0] + 75))
         if self.ToFDistancesRaw[3] < 1500:
-            sensors.append((0, -self.ToFDistancesRaw[3]))
+            sensors.append((0, -self.ToFDistancesRaw[3] - 75))
         if self.ToFDistancesRaw[2] < 1500:
-            sensors.append((-self.ToFDistancesRaw[2], 0))
+            sensors.append((-self.ToFDistancesRaw[2] - 75, 0))
         if self.ToFDistancesRaw[1] < 1500:
-            sensors.append((self.ToFDistancesRaw[1], 0))
+            sensors.append((self.ToFDistancesRaw[1] + 75, 0))
         USsensors = []
         if self.USDistancesRaw[0] > 0:
             USsensors.append((-self.USDistancesRaw[0], 100))
@@ -310,6 +310,9 @@ class RobotDrive:
             color="red",
             label="Ultrasonic Sensors",
         )
+        # Plot circle for robot body
+        circle = plt.Circle((0, 0), 75, color="gray", fill=False, label="Robot Body")
+        plt.gca().add_artist(circle)
         plt.scatter(0, 0, color="green", label="Robot Position")
         plt.title("Sensor Readings Visualization")
         plt.legend()

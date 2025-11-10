@@ -272,6 +272,13 @@ def shift_sensor_readings(sensor_readings: list, current_frontend: int) -> list:
     return shifted_readings
 
 
+## TESTING
+
+# robot = RobotDrive(packetize, transmit, receive)
+# robot.ToFDistancesRaw = [100, 200, 300, 400]
+# robot.USDistancesRaw = [200, 200, 200, 200, 200, 200, 200, 200]
+# robot.plotSensorData(plt=plt)
+
 ############## Constant Definitions Begin ##############
 ### Network Setup ###
 HOST = "127.0.0.1"  # The server's hostname or IP address
