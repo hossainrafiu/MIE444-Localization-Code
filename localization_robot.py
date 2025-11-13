@@ -37,6 +37,7 @@ from localization import ParticleFilter
 from pathfinding import *
 from robot_control import RobotDrive
 
+verboseConsole = False # If true, print all transmitted and received data to console
 
 # Wrapper functions
 def transmit(data):
@@ -109,7 +110,8 @@ def receive_serial():
             else:
                 response_raw += response_char
 
-    print(f"Raw response was: {response_raw}")
+    if verboseConsole:
+        print(f"Raw response was: {response_raw}")
 
     # If response received, return it
     if response_raw:
@@ -122,7 +124,8 @@ def clear_serial(delay_time: float = 0):
     """Wait some time (delay_time) and then clear the serial buffer."""
     if SER.in_waiting:
         time.sleep(delay_time)
-        print(f"Clearing Serial... Dumped: {SER.read(SER.in_waiting)}")
+        if verboseConsole:
+            print(f"Clearing Serial... Dumped: {SER.read(SER.in_waiting)}")
 
 
 # Packetization and validation functions
@@ -141,23 +144,7 @@ def depacketize(data_raw: str):
             data_raw[start + 1 : end].replace(f"{FRAMEEND}{FRAMESTART}", ",").split(",")
         )
         return data
-        # cmd_list = [item.split(":", 1) for item in data]
-
-        # # Make sure this list is formatted in the expected manner
-        # for cmd_single in cmd_list:
-        #     match len(cmd_single):
-        #         case 0:
-        #             cmd_single.append("")
-        #             cmd_single.append("")
-        #         case 1:
-        #             cmd_single.append("")
-        #         case 2:
-        #             pass
-        #         case _:
-        #             pass
-        #             # cmd_single = cmd_single[0:2]
-
-        # return cmd_list
+        
     else:
         return [[False, ""]]
 
@@ -220,7 +207,7 @@ def validate_responses(cmd_list: list, responses_list: list):
     return valid
 
 
-def cordsToGrid(x: float, y: float, theta: float) -> tuple:
+def cords_to_grid(x: float, y: float, theta: float) -> tuple:
     """Convert real-world coordinates to grid coordinates and orientation."""
     # Assuming each grid cell is 12x12 inches and the origin (0,0) is at the center of cell (0,0)
     col, row, orientation = 0, 0, 0
@@ -263,13 +250,14 @@ def cordsToGrid(x: float, y: float, theta: float) -> tuple:
     return (col, row, orientation)
 
 
-def shift_sensor_readings(sensor_readings: list, current_frontend: int) -> list:
+def shift_sensor_readings(_sensor_readings: list, current_frontend: int) -> list:
     """Shift sensor readings based on current frontend orientation."""
     # current_frontend: 0: forward, 1: right, 2: backward, 3: left
     shifted_readings = [0, 0, 0, 0]
     for i in range(4):
-        shifted_readings[i] = sensor_readings[(i + current_frontend) % 4]
+        shifted_readings[i] = _sensor_readings[(i + current_frontend) % 4]
     return shifted_readings
+
 
 def get_delta() -> tuple:
     """Get the delta x, y, and theta based on the current frontend and action."""
@@ -297,7 +285,7 @@ PORT_TX = 61200  # The port used by the *CLIENT* to receive
 PORT_RX = 61201  # The port used by the *CLIENT* to send data
 
 ### Serial Setup ###
-BAUDRATE = 9600  # Baudrate in bps
+BAUDRATE = 115200  # Baudrate in bps
 PORT_SERIAL = "COM8"  # COM port identification
 TIMEOUT_SERIAL = 3  # Serial port timeout, in seconds
 
@@ -373,7 +361,7 @@ while not MANUAL_CONTROL:
     print(f"Estimated Position: x={x}, y={y}, theta={theta}, confidence={confidence}")
 
     if confidence > 50:
-        current_c, current_r, current_ori = cordsToGrid(x, y, theta)
+        current_c, current_r, current_ori = cords_to_grid(x, y, theta)
         print(f"Grid Position: row={current_r}, col={current_c}, ori={current_ori}")
         target_rc = goal_from_state(
             with_load, load_pick_up_location, unload_drop_off_location
