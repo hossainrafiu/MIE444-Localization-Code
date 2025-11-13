@@ -516,14 +516,14 @@ while MANUAL_CONTROL:
         "'l' = load/unload, 'p' = ping sensors, 'u' = update localization, 'us' = ultrasonic sensors, 'c' = centering\n"
     )
     val = input("Enter command: ")
-    duration = ""
-    if val not in ["w", "l", "p", "u", "us", "c", "o", "=", "z","x", "w", "a", "s", "d"]:
-        duration = input("Enter duration in milliseconds: ")
+    # duration = ""
+    # if val not in ["w", "l", "p", "u", "us", "c", "o", "=", "z","x", "w", "a", "s", "d"]:
+    #     duration = input("Enter duration in milliseconds: ")
     if val.lower() == "l":
         robot.sendCommand("g")
     elif val.lower() == "p":
         robot.pingSensors()
-        robot.pingSensors("u2")
+        # robot.pingSensors("u2")
         plt.subplot(1, 2, 2)
         plt.cla()
         robot.plotSensorData(plt=plt)
@@ -555,17 +555,17 @@ while MANUAL_CONTROL:
         robot.sendCommand("x")
 
     elif val.lower() == "y":
-        robot.sendCommand(f"f{duration}")
+        robot.sendCommand("f200")
     elif val.lower() == "g":
-        robot.sendCommand(f"a{duration}")
+        robot.sendCommand("a200")
     elif val.lower() == "h":
-        robot.sendCommand(f"s{duration}")
+        robot.sendCommand("s200")
     elif val.lower() == "j":
-        robot.sendCommand(f"d{duration}")
+        robot.sendCommand("d200")
     elif val.lower() == "q":
-        robot.sendCommand(f"q{duration}")
+        robot.sendCommand("q200")
     elif val.lower() == "e":
-        robot.sendCommand(f"e{duration}")
+        robot.sendCommand("e200")
     elif val.lower() == "=":
         SER.close()
         break   
