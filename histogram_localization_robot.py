@@ -308,6 +308,9 @@ with_load = False
 unload_drop_off_location = [3, 7]  # (row, col)
 updateMotion = False
 
+plt.figure(num=1, figsize=(12, 6), clear=True)
+plt.subplot(1, 2, 1)
+
 localizer.print_belief_summary()
 localizer.visualize_belief(plt)
 
@@ -516,6 +519,7 @@ while MANUAL_CONTROL:
             f"\nDetected block type: {observed_block_type}\n Enter block type you want to update histogram localization with: "
         )
         localizer.update_belief(type)
+        plt.subplot(1, 2, 1)
         localizer.visualize_belief(plt)
         movement = input("Enter movement to predict (f, l, r, b): ")
         movement_map = {
@@ -525,4 +529,5 @@ while MANUAL_CONTROL:
             "d": "right",
         }
         localizer.predict_motion(movement_map[movement])
+        plt.subplot(1, 2, 1)
         localizer.visualize_belief(plt)

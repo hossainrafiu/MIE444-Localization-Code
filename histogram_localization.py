@@ -219,15 +219,16 @@ class HistogramLocalization:
         names = ["North", "East", "South", "West"]
         return names[orientation]
 
-    def visualize_belief(self):
+    def visualize_belief(self, plt=plt, showOrientation=True):
         """Visualize the current belief distribution (summed over all orientations)."""
         # Sum over all orientations to get position probability
         position_belief = np.sum(self.belief, axis=2)
 
-        plt.figure(num=1, figsize=(12, 6), clear=True)
+        if showOrientation:
+            plt.figure(num=1, figsize=(12, 6), clear=True)
+            plt.subplot(1, 2, 1)
 
         # Plot 1: Position probability
-        plt.subplot(1, 2, 1)
         plt.imshow(position_belief, cmap="copper", interpolation="nearest")
         plt.colorbar(label="Probability")
         plt.title("Robot Position Belief Distribution")
@@ -254,18 +255,19 @@ class HistogramLocalization:
                 )
 
         # Plot 2: Orientation distribution at most likely position
-        plt.subplot(1, 2, 2)
-        most_likely = self.get_most_likely_position()
-        orientation_probs = self.belief[most_likely[0], most_likely[1], :] / np.sum(
-            self.belief[most_likely[0], most_likely[1], :]
-        )
-        orientations = ["North", "East", "South", "West"]
-        plt.bar(orientations, orientation_probs)
-        plt.title(f"Orientation at ({most_likely[0]}, {most_likely[1]})")
-        plt.ylabel("Probability")
-        plt.ylim([0, 1])
+        if showOrientation:
+            plt.subplot(1, 2, 2)
+            most_likely = self.get_most_likely_position()
+            orientation_probs = self.belief[most_likely[0], most_likely[1], :] / np.sum(
+                self.belief[most_likely[0], most_likely[1], :]
+            )
+            orientations = ["North", "East", "South", "West"]
+            plt.bar(orientations, orientation_probs)
+            plt.title(f"Orientation at ({most_likely[0]}, {most_likely[1]})")
+            plt.ylabel("Probability")
+            plt.ylim([0, 1])
 
-        plt.tight_layout()
+            plt.tight_layout()
         plt.show(block=False)
 
     def print_belief_summary(self):
