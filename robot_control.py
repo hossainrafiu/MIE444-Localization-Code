@@ -230,7 +230,9 @@ class RobotDrive:
                 print("Path clear, moving forward.")
             self.sendCommand(f"f{duration}")
             time.sleep(0.1)
-            self.checkCentering()
+            # self.checkCentering()
+            self.centreinblock()
+        self.sendCommand("h")
 
     def plotSensorData(self, plt):
         sensors = []
@@ -408,26 +410,27 @@ class RobotDrive:
         if old_main_reading < check_range[1] and main_reading >= check_range[1]:
             self.inCenterOfNextBlock = False
 
+        print(f"Centering Check: Main Reading = {main_reading}mm, Range = {check_range}")
         # return centering status and offcenter distance
         if main_reading < check_range[0]:
+            offcenter = check_range[0] - main_reading
             if self.verboseConsole:
                 print(
-                    f"Robot is before the center of the block (Off Center: {main_reading}mm)."
+                    f"Robot is before the center of the block (Off Center: {offcenter}mm)."
                 )
-            offcenter = check_range[0] - main_reading
             return [False, offcenter]
         elif main_reading > check_range[1]:
-            if self.verboseConsole:
-                print(
-                    f"Robot is beyond the center of the block (Off Center: {main_reading}mm)."
-                )
             # Should be negative to indicate backwards movement needed
             offcenter = check_range[1] - main_reading
+            if self.verboseConsole:
+                print(
+                    f"Robot is beyond the center of the block (Off Center: {offcenter}mm)."
+                )
             return [False, offcenter]
         else:
             if self.verboseConsole:
                 print(
-                    f"Robot is well centered within the block (Off Center: {main_reading}mm)."
+                    f"Robot is well centered within the block (main_reading: {main_reading}mm)."
                 )
             offcenter = 0
             return [True, offcenter]
@@ -454,3 +457,30 @@ class RobotDrive:
                     duration = min(abs(offcenter) * 5, 1000)
                     self.sendCommand(f"s{duration}")
                     time.sleep(duration / 1000 + 0.5)
+    
+    def centreinblock(self):
+        self.pingSensors()
+        blocklength=305 #Length of a block
+        tolerance=25    #tolerance around center
+        middle=76       #reading from sensor when centered
+        mult=1          #used to correct signed direction of travel to center 
+        correction=0
+        minDis=min(self.ToFDistances[0]+middle,self.ToFDistances[2]+middle) #Shortest length between front and back wall corrected to robot center 
+        if(minDis//305==1):
+            correction=20
+        elif(minDis//305>1):
+            correction=40
+        minDis=minDis-correction
+        if(self.ToFDistances[0]<self.ToFDistances[2]): # Sets mult based on larger front or back length (1 forward, -1 backwards)
+            mult=-1
+        print("Robot distance wall:"+str(minDis))
+        minDis=minDis%blocklength   #distance from biginning of current block to robot center 
+        print("Robot distance to start of block:"+str(minDis))
+        middleDis=2*middle-minDis   #distance from robot center to block center
+        print("Distance to center of block:"+str(middleDis*mult))
+        if(-tolerance<middleDis<tolerance): # if block center distance is whithin tolerance, robot is in center
+            self.inCenterOfNextBlock=True
+            return [True, middleDis*mult]
+        else:
+            self.inCenterOfNextBlock=False
+            return [False, middleDis*mult]

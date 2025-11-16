@@ -1,4 +1,5 @@
-from client_communication import *
+from client_communication import ClientCommunication, PORT_SERIAL, BAUDRATE, TIMEOUT_SERIAL
+import serial
 import matplotlib.pyplot as plt
 
 from histogram_localization import HistogramLocalization
@@ -123,6 +124,9 @@ while True:
     duration = 200
     if val.lower() == "l":
         robot.sendCommand("g")
+        
+    elif val.lower() == "f":
+        robot.obstacleAvoidanceContinuous()
 
     elif val.lower() == "p":
         robot.pingSensors()
@@ -131,7 +135,9 @@ while True:
         robot.plotSensorData(plt=plt)
 
     elif val.lower() == "c":
-        robot.sendCommand("c")
+        # robot.sendCommand("c")
+        robot.centreinblock()
+        robot.checkCentering()
     elif val.lower() == "o":
         robot.sendCommand("o")
     elif val.lower() == "z":

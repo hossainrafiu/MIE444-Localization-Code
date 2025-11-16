@@ -42,7 +42,7 @@ class ClientCommunication:
         if response_raw:
             return [self.depacketize(response_raw), datetime.now().strftime("%H:%M:%S")]
         else:
-            return [[False], datetime.now().strftime("%H:%M:%S")]
+            return [False]
 
     def clear_serial(self, delay_time: float = 0):
         """Wait some time (delay_time) and then clear the serial buffer."""
@@ -71,7 +71,7 @@ class ClientCommunication:
         else:
             return [False]
 
-    def packetize(data: str):
+    def packetize(self, data: str):
         """
         Take a message that is to be sent to the command script and packetize it with start and end framing.
         """
