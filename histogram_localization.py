@@ -219,32 +219,32 @@ class HistogramLocalization:
         names = ["North", "East", "South", "West"]
         return names[orientation]
 
-    def visualize_belief(self, plt=plt, showOrientation=True):
+    def visualize_belief(self, _plt=plt, showOrientation=True):
         """Visualize the current belief distribution (summed over all orientations)."""
         # Sum over all orientations to get position probability
         position_belief = np.sum(self.belief, axis=2)
 
         if showOrientation:
-            plt.figure(num=1, figsize=(12, 6), clear=True)
-            plt.subplot(1, 2, 1)
+            _plt.figure(num=1, figsize=(12, 6), clear=True)
+            _plt.subplot(1, 2, 1)
 
         # Plot 1: Position probability
-        plt.imshow(position_belief, cmap="copper", interpolation="nearest")
-        plt.colorbar(label="Probability")
-        plt.title("Robot Position Belief Distribution")
-        plt.xlabel("Column")
-        plt.ylabel("Row")
+        _plt.imshow(position_belief, cmap="copper", interpolation="nearest")
+        _plt.colorbar(label="Probability")
+        _plt.title("Robot Position Belief Distribution")
+        _plt.xlabel("Column")
+        _plt.ylabel("Row")
 
         # Add grid
         for i in range(self.rows + 1):
-            plt.axhline(i - 0.5, color="black", linewidth=0.5)
+            _plt.axhline(i - 0.5, color="black", linewidth=0.5)
         for j in range(self.cols + 1):
-            plt.axvline(j - 0.5, color="black", linewidth=0.5)
+            _plt.axvline(j - 0.5, color="black", linewidth=0.5)
 
         # Annotate with probabilities
         for i in range(self.rows):
             for j in range(self.cols):
-                text = plt.text(
+                _plt.text(
                     j,
                     i,
                     f"{position_belief[i, j]:.3f}",
@@ -256,19 +256,19 @@ class HistogramLocalization:
 
         # Plot 2: Orientation distribution at most likely position
         if showOrientation:
-            plt.subplot(1, 2, 2)
+            _plt.subplot(1, 2, 2)
             most_likely = self.get_most_likely_position()
             orientation_probs = self.belief[most_likely[0], most_likely[1], :] / np.sum(
                 self.belief[most_likely[0], most_likely[1], :]
             )
             orientations = ["North", "East", "South", "West"]
-            plt.bar(orientations, orientation_probs)
-            plt.title(f"Orientation at ({most_likely[0]}, {most_likely[1]})")
-            plt.ylabel("Probability")
-            plt.ylim([0, 1])
+            _plt.bar(orientations, orientation_probs)
+            _plt.title(f"Orientation at ({most_likely[0]}, {most_likely[1]})")
+            _plt.ylabel("Probability")
+            _plt.ylim([0, 1])
 
-            plt.tight_layout()
-        plt.show(block=False)
+            _plt.tight_layout()
+        _plt.show(block=False)
 
     def print_belief_summary(self):
         """Print a summary of the current belief state."""
@@ -337,48 +337,48 @@ class HistogramLocalization:
 #     localizer.visualize_belief()
 
 # Works with user input
-if __name__ == "__main__":
+# if __name__ == "__main__":
 
-    omnidrive_mode = input("Enable omnidrive mode? (y/n): ").strip().lower() == "y"
-    # Initialize the localization system
-    localizer = HistogramLocalization(
-        defaultGameMap, sensor_accuracy=0.8, omnidrive=omnidrive_mode
-    )
+#     omnidrive_mode = input("Enable omnidrive mode? (y/n): ").strip().lower() == "y"
+#     # Initialize the localization system
+#     localizer = HistogramLocalization(
+#         defaultGameMap, sensor_accuracy=0.8, omnidrive=omnidrive_mode
+#     )
 
-    print("Initial belief state (uniform distribution):")
-    localizer.print_belief_summary()
-    localizer.visualize_belief()
+#     print("Initial belief state (uniform distribution):")
+#     localizer.print_belief_summary()
+#     localizer.visualize_belief()
 
-    # Simulate robot observations and movements
-    while True:
-        obs = input("\nEnter observed block type (0-5) or 'q' to quit: ")
-        if obs.lower() == "q":
-            break
-        try:
-            observed_block_type = int(obs)
-            if observed_block_type < 0 or observed_block_type > 5:
-                raise ValueError
-        except ValueError:
-            print("Invalid input. Please enter a block type between 0 and 5.")
-            continue
+#     # Simulate robot observations and movements
+#     while True:
+#         obs = input("\nEnter observed block type (0-5) or 'q' to quit: ")
+#         if obs.lower() == "q":
+#             break
+#         try:
+#             observed_block_type = int(obs)
+#             if observed_block_type < 0 or observed_block_type > 5:
+#                 raise ValueError
+#         except ValueError:
+#             print("Invalid input. Please enter a block type between 0 and 5.")
+#             continue
 
-        localizer.update_belief(observed_block_type)
-        localizer.print_belief_summary()
-        localizer.visualize_belief()
+#         localizer.update_belief(observed_block_type)
+#         localizer.print_belief_summary()
+#         localizer.visualize_belief()
 
-        action = input(
-            "\nEnter robot action ('forward'(w), 'backward'(s), 'left'(a), 'right'(d)) or 'q' to quit: "
-        )
-        if action.lower() == "q":
-            break
-        if action not in ["w", "a", "s", "d"]:
-            print(
-                "Invalid action. Please enter 'forward', 'backward', 'left', or 'right'."
-            )
-            continue
+#         action = input(
+#             "\nEnter robot action ('forward'(w), 'backward'(s), 'left'(a), 'right'(d)) or 'q' to quit: "
+#         )
+#         if action.lower() == "q":
+#             break
+#         if action not in ["w", "a", "s", "d"]:
+#             print(
+#                 "Invalid action. Please enter 'forward', 'backward', 'left', or 'right'."
+#             )
+#             continue
 
-        action_map = {"w": "forward", "s": "backward", "a": "left", "d": "right"}
-        action = action_map[action]
-        localizer.predict_motion(action)
-        localizer.print_belief_summary()
-        localizer.visualize_belief()
+#         action_map = {"w": "forward", "s": "backward", "a": "left", "d": "right"}
+#         action = action_map[action]
+#         localizer.predict_motion(action)
+#         localizer.print_belief_summary()
+#         localizer.visualize_belief()

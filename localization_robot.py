@@ -37,7 +37,8 @@ from localization import ParticleFilter
 from pathfinding import *
 from robot_control import RobotDrive
 
-verboseConsole = False # If true, print all transmitted and received data to console
+verboseConsole = False  # If true, print all transmitted and received data to console
+
 
 # Wrapper functions
 def transmit(data):
@@ -144,7 +145,7 @@ def depacketize(data_raw: str):
             data_raw[start + 1 : end].replace(f"{FRAMEEND}{FRAMESTART}", ",").split(",")
         )
         return data
-        
+
     else:
         return [[False, ""]]
 
@@ -262,8 +263,8 @@ def shift_sensor_readings(_sensor_readings: list, current_frontend: int) -> list
 def get_delta() -> tuple:
     """Get the delta x, y, and theta based on the current frontend and action."""
     delta_x = (
-            3 if robot.currentFrontend == 0 else -3 if robot.currentFrontend == 2 else 0
-        )
+        3 if robot.currentFrontend == 0 else -3 if robot.currentFrontend == 2 else 0
+    )
     delta_y = (
         -3 if robot.currentFrontend == 1 else 3 if robot.currentFrontend == 3 else 0
     )
@@ -534,7 +535,9 @@ while MANUAL_CONTROL:
         print(f"Moving particles by Δx={delta_x}, Δy={delta_y}, Δθ={delta_theta}")
         pf.move_particles(delta_x, delta_y, delta_theta)
         # robot.pingSensors()
-        sensor_readings = [x / 25.4 for x in robot.ToFDistancesRaw]  # Convert mm to inches
+        sensor_readings = [
+            x / 25.4 for x in robot.ToFDistancesRaw
+        ]  # Convert mm to inches
         sensor_readings[1], sensor_readings[3] = sensor_readings[3], sensor_readings[1]
         pf.update_weights_improved(sensor_readings)
         pf.resample_particles_improved()
@@ -568,7 +571,7 @@ while MANUAL_CONTROL:
         robot.sendCommand("e200")
     elif val.lower() == "=":
         SER.close()
-        break   
+        break
     elif val.lower() == "w":
         if robot.currentFrontend != 0:
             robot.sendCommand("r0")

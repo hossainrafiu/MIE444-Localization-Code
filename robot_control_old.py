@@ -3,7 +3,7 @@ import time
 RECURSIVE_ALLIGN = False
 
 
-class RobotDriveContinuous:
+class RobotDrive:
     def __init__(self, packetize, transmit, receive):
         self.verboseConsole = True
         self.RESPONSE_TIMEOUT = 6  # seconds
@@ -21,6 +21,7 @@ class RobotDriveContinuous:
         self.ToFDistances = [8000, 8000, 8000, 8000]  # front, right, back, left
         self.ToFDistancesRaw = [8000, 8000, 8000, 8000]
         self.currentFrontend = 0
+        self.inCenterOfNextBlock = False
 
     def pingSensors(self, raw_cmd="p", try_again=True):
         packet_tx = self.packetize(raw_cmd)
@@ -71,6 +72,11 @@ class RobotDriveContinuous:
         if self.verboseConsole:
             print(f"Command Response at {time_rx}: {responses}")
         return responses
+
+    def setFrontEnd(self, new_frontend: int):
+        new_frontend = new_frontend % 4
+        self.sendCommand(f"r{new_frontend}")
+        self.currentFrontend = new_frontend
 
     # NO MORE ULTRASONIC SENSORS ON ROBOT
     def allignWithWall(self, direction: int, ping=True):
@@ -211,7 +217,9 @@ class RobotDriveContinuous:
                 60 - self.ToFDistances[1] * 10, 200
             )  # Adjust duration based on distance
             self.sendCommand(f"a{movement_duration}")
+            time.sleep(movement_duration)
             self.sendCommand(f"q{movement_duration}")
+            time.sleep(movement_duration)
             return True
 
         elif self.ToFDistances[3] < 60:
@@ -224,7 +232,9 @@ class RobotDriveContinuous:
                 60 - self.ToFDistances[3] * 10, 200
             )  # Adjust duration based on distance
             self.sendCommand(f"d{movement_duration}")
+            time.sleep(movement_duration)
             self.sendCommand(f"e{movement_duration}")
+            time.sleep(movement_duration)
             return True
         return False
 
@@ -242,7 +252,9 @@ class RobotDriveContinuous:
                 self.ToFDistances[3] - 90, 100
             )  # Adjust duration based on distance
             self.sendCommand(f"a{movement_duration}")
+            time.sleep(movement_duration)
             self.sendCommand(f"q{movement_duration}")
+            time.sleep(movement_duration)
             return True
 
         elif (
@@ -258,38 +270,11 @@ class RobotDriveContinuous:
                 self.ToFDistances[1] - 90, 100
             )  # Adjust duration based on distance
             self.sendCommand(f"d{movement_duration}")
+            time.sleep(movement_duration)
             self.sendCommand(f"e{movement_duration}")
+            time.sleep(movement_duration)
             return True
         return False
-
-    def obstacleAvoidanceV2(self, ping=True, duration=3000):
-        if self.verboseConsole:
-            print("Starting obstacle avoidance routine...")
-        if ping:
-            self.pingSensors()
-
-        if self.MOVELEFTWHENPOSSIBLE:
-            self.moveLeftWhenPossible()
-
-        if self.MOVERIGHTWHENPOSSIBLE:
-            self.moveRightWhenPossible()
-
-        self.avoidCornersIfTurning()
-
-        if self.ToFDistances[0] < 60:
-            self.avoidFrontWall()
-
-        # if self.ToFDistances[1] < 80:
-        #     self.allignWithWall(1, ping)
-        # elif self.ToFDistances[3] < 80:
-        #     self.allignWithWall(3, ping)
-
-        if not self.avoidSideWalls():
-            self.hugSideWalls()
-
-        if self.verboseConsole:
-            print("Path clear, moving forward.")
-        self.sendCommand(f"f{duration}")
 
     def plotSensorData(self, plt):
         sensors = []
@@ -369,3 +354,79 @@ class RobotDriveContinuous:
         plt.ylabel("Y (mm)")
         plt.grid(True)
         plt.show(block=False)
+
+    def centering(self):
+        lastMeasure1 = 8000
+        lastMeasure2 = 8000
+        lastMeasure3 = 8000
+        for _ in range(40):
+            self.sendCommand("h")  # halt
+            self.sendCommand("e200")  # rotate CW
+            time.sleep(0.5)
+            self.sendCommand("h")  # halt
+            self.pingSensors()
+            lastMeasure3 = lastMeasure2
+            lastMeasure2 = lastMeasure1
+            lastMeasure1 = self.ToFDistances[1]
+            if self.verboseConsole:
+                print(f"M1: {lastMeasure1} M2: {lastMeasure2} M3: {lastMeasure3}")
+            if self.ToFDistances[0] > 300 and self.ToFDistances[1] < 150:
+                if lastMeasure1 > lastMeasure2 and lastMeasure3 > lastMeasure2:
+                    self.sendCommand("q200")  # rotate CCW
+                    time.sleep(0.5)
+                    self.sendCommand("h")  # halt
+                    return
+
+    def simpleParallelize(self, ping=True):
+        if ping:
+            self.pingSensors()
+        # check if no sensor detects a wall within 150mm, then return
+        if (
+            self.ToFDistances[0] > 150
+            and self.ToFDistances[1] > 150
+            and self.ToFDistances[2] > 150
+            and self.ToFDistances[3] > 150
+        ):
+            if self.verboseConsole:
+                print("No walls detected within 150mm, skipping parallelization.")
+            return
+        # find sensor with the closest wall
+        min_distance = min(self.ToFDistances)
+        min_index = self.ToFDistances.index(min_distance)
+
+        # align with that wall, do small rotations in both directions to find the best alignment
+        min_distance_plus_CW = 8000
+        min_distance_plus_CCW = 8000
+        self.sendCommand("e100")  # small CW rotation
+        time.sleep(0.3)
+        self.pingSensors()
+        min_distance_plus_CW = self.ToFDistances[min_index]
+        self.sendCommand("q200")  # small CCW rotation (back to original + CCW)
+        time.sleep(0.3)
+        self.pingSensors()
+        min_distance_plus_CCW = self.ToFDistances[min_index]
+        # decide which direction was better compared to original distance
+        if (
+            min_distance_plus_CW < min_distance
+            and min_distance_plus_CW < min_distance_plus_CCW
+        ):
+            if self.verboseConsole:
+                print("Adjusting alignment: rotating CW.")
+            self.sendCommand("e200")  # rotate CW
+            time.sleep(0.3)
+        elif (
+            min_distance_plus_CCW < min_distance
+            and min_distance_plus_CCW < min_distance_plus_CW
+        ):
+            if self.verboseConsole:
+                print("Adjusting alignment: rotating CCW.")
+            self.sendCommand("q100")  # rotate CCW
+            time.sleep(0.3)
+        else:
+            if self.verboseConsole:
+                print("Originally well aligned, no adjustment needed.")
+            self.sendCommand("e100")  # rotate back to original position
+
+    # Need to implement
+    def checkCentering(self):
+        return
