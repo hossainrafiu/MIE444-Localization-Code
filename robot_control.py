@@ -251,6 +251,31 @@ class RobotDrive:
                 self.ToFDistances[1] - 90, 100
             )  # Adjust duration based on distance
             self.sendCommand(f"d{movement_duration}")
+            
+    def centreinblock(self):
+        self.pingSensors()
+        blocklength=305 #Length of a block
+        tolerance=25    #tolerance around center
+        middle=76       #reading from sensor when centered
+        mult=1          #used to correct signed direction of travel to center 
+        correction=0
+        minDis=min(self.ToFDistances[0]+middle,self.ToFDistances[2]+middle) #Shortest length between front and back wall corrected to robot center 
+        if(minDis//305==1):
+            correction=20
+        elif(minDis//305>1):
+            correction=40
+        minDis=minDis-correction
+        if(self.ToFDistances[0]<self.ToFDistances[3]): # Sets mult based on larger front or back length (1 forward, -1 backwards)
+            mult=-1
+        print("Robot distance wall:"+str(minDis))
+        minDis=minDis%blocklength   #distance from biginning of current block to robot center 
+        print("Robot distance to start of block:"+str(minDis))
+        middleDis=2*middle-minDis   #distance from robot center to block center
+        print
+        if(-tolerance<middleDis<tolerance): # if block center distance is whithin tolerance, robot is in center
+            return [True, middleDis*mult]
+        else:
+            return [False, middleDis*mult]
 
     def obstacleAvoidance(self, ping=True, duration = 500):
         if self.verboseConsole:

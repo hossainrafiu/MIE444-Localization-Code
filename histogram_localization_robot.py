@@ -259,7 +259,7 @@ PORT_RX = 61201  # The port used by the *CLIENT* to send data
 
 ### Serial Setup ###
 BAUDRATE = 9600  # Baudrate in bps
-PORT_SERIAL = "COM8"  # COM port identification
+PORT_SERIAL = "COM7"  # COM port identification
 TIMEOUT_SERIAL = 3  # Serial port timeout, in seconds
 
 ### Packet Framing values ###
@@ -438,7 +438,7 @@ while MANUAL_CONTROL:
     )
     val = input("Enter command: ")
     duration = ""
-    if val not in ["w", "l", "p", "u", "us", "c", "o", "=", "z","x", "w", "a", "s", "d"]:
+    if val not in ["w", "l", "p", "u", "us", "c", "o", "=", "z","x", "w", "a", "s", "d","."]:
         duration = input("Enter duration in milliseconds: ")
     if val.lower() == "l":
         robot.sendCommand("g")
@@ -531,3 +531,7 @@ while MANUAL_CONTROL:
         localizer.predict_motion(movement_map[movement])
         plt.subplot(1, 2, 1)
         localizer.visualize_belief(plt)
+    elif val.lower() == ".":
+        [centered, distance]=robot.centreinblock()
+        print("Centered:"+str(centered))
+        print("distance:"+str(distance))
