@@ -23,6 +23,9 @@ class RobotDrive:
         self.currentFrontend = 0
 
         self.centeringThreshold = 50  # mm
+        self.centeringCheckArray = [[50, 150], [400, 500], [675, 775]]
+        self.inCenterOfNextBlock = False
+        self.pauseInCenter = True
 
     def pingSensors(self, raw_cmd="p", try_again=True):
         packet_tx = self.packetize(raw_cmd)
@@ -91,23 +94,20 @@ class RobotDrive:
         # For adjacent frontends, perform centering checks
         if self.verboseConsole:
             print("Changing frontend with centering checks.")
-        offcenter = self.checkCentering()
-        if abs(offcenter) < self.centeringThreshold:
+        centered, _ = self.checkCentering()
+        if centered:
             if self.verboseConsole:
                 print("Robot is well centered, changing frontend directly.")
             self.sendCommand("r" + str(new_frontend))
             return
-        elif offcenter >= self.centeringThreshold:
+        else:
             if self.verboseConsole:
                 print(
-                    "Robot is in behind of the center of the block, move forward before turning."
+                    "Robot is offcentered, adjusting position before changing frontend."
                 )
-            duration = min(offcenter * 5, 1000)
-            self.sendCommand(f"f{duration}")
-            time.sleep(duration)
+            self.performBlockCentering()
             self.sendCommand("r" + str(new_frontend))
             return
-        return
 
     def avoidFrontWall(self):
         # Obstacle detected in front, stop and back up
@@ -194,14 +194,6 @@ class RobotDrive:
         if ping:
             self.pingSensors()
 
-        if self.MOVELEFTWHENPOSSIBLE:
-            self.moveLeftWhenPossible()
-
-        if self.MOVERIGHTWHENPOSSIBLE:
-            self.moveRightWhenPossible()
-
-        self.avoidCornersIfTurning()
-
         if self.ToFDistances[0] < 60:
             self.avoidFrontWall()
 
@@ -213,7 +205,7 @@ class RobotDrive:
         self.sendCommand(f"f{duration}")
 
     def obstacleAvoidanceContinuous(self, ping=True, duration=30000):
-        while not self.inCenterOfNextBlock:
+        while not (self.inCenterOfNextBlock and self.pauseInCenter):
             if self.verboseConsole:
                 print("Starting obstacle avoidance routine...")
 
@@ -385,6 +377,74 @@ class RobotDrive:
                 print("Originally well aligned, no adjustment needed.")
             self.sendCommand("e100")  # rotate back to original position
 
-    # Need to implement
-    def checkCentering(self):
+    def checkCentering(self, ping=True):
+        if ping:
+            self.pingSensors()
+        # Get readings from just front and back ToF sensors
+        front_reading = self.ToFDistances[0]
+        back_reading = self.ToFDistances[2]
+        if front_reading < back_reading:
+            main_reading = front_reading + 75
+            main_index = 0
+        else:
+            main_reading = back_reading + 75
+            main_index = 2
+        old_main_reading = self.lastToFDistances[main_index] + 75
+        # Determine offcenter range to use
+        check_in_range = main_reading // 300
+        check_range = self.centeringCheckArray[min(check_in_range, 2)]
+
+        # Using histerisis to prevent rapid toggling of inCenterOfNextBlock flag
+        # Set inCenterOfNextBlock flag if first range value is passed
+        if old_main_reading < check_range[0] and main_reading >= check_range[0]:
+            self.inCenterOfNextBlock = True
+        # Clear inCenterOfNextBlock flag if second range value is passed
+        if old_main_reading < check_range[1] and main_reading >= check_range[1]:
+            self.inCenterOfNextBlock = False
+
+        # return centering status and offcenter distance
+        if main_reading < check_range[0]:
+            if self.verboseConsole:
+                print(
+                    f"Robot is before the center of the block (Off Center: {main_reading}mm)."
+                )
+            offcenter = check_range[0] - main_reading
+            return [False, offcenter]
+        elif main_reading > check_range[1]:
+            if self.verboseConsole:
+                print(
+                    f"Robot is beyond the center of the block (Off Center: {main_reading}mm)."
+                )
+            # Should be negative to indicate backwards movement needed
+            offcenter = check_range[1] - main_reading
+            return [False, offcenter]
+        else:
+            if self.verboseConsole:
+                print(
+                    f"Robot is well centered within the block (Off Center: {main_reading}mm)."
+                )
+            offcenter = 0
+            return [True, offcenter]
         return
+
+    def performBlockCentering(self):
+        centered = False
+        while not centered:
+            [centered, offcenter] = self.checkCentering()
+            if not centered:
+                if offcenter > 0:
+                    if self.verboseConsole:
+                        print(
+                            f"Robot is before the center of the block, moving forward by {offcenter}mm."
+                        )
+                    duration = min(offcenter * 5, 1000)
+                    self.sendCommand(f"f{duration}")
+                    time.sleep(duration / 1000 + 0.5)
+                else:
+                    if self.verboseConsole:
+                        print(
+                            f"Robot is beyond the center of the block, moving backward by {abs(offcenter)}mm."
+                        )
+                    duration = min(abs(offcenter) * 5, 1000)
+                    self.sendCommand(f"s{duration}")
+                    time.sleep(duration / 1000 + 0.5)
