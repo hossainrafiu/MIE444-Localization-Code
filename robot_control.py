@@ -77,7 +77,7 @@ class RobotDrive:
             print(f"Command Response at {time_rx}: {responses}")
         return responses
 
-    def changeFrontEnd(self, new_frontend):
+    def changeFrontEnd(self, new_frontend, center_after_change=False):
         # If new_frontend is the same as current, do nothing
         if new_frontend == self.currentFrontend:
             if self.verboseConsole:
@@ -90,6 +90,8 @@ class RobotDrive:
                     "New frontend is opposite to current, no centering checks needed."
                 )
             self.sendCommand("r" + str(new_frontend))
+            if center_after_change:
+                self.performBlockCentering()
             return
         # For adjacent frontends, perform centering checks
         if self.verboseConsole:
@@ -99,6 +101,8 @@ class RobotDrive:
             if self.verboseConsole:
                 print("Robot is well centered, changing frontend directly.")
             self.sendCommand("r" + str(new_frontend))
+            if center_after_change:
+                self.performBlockCentering()
             return
         else:
             if self.verboseConsole:
@@ -107,6 +111,8 @@ class RobotDrive:
                 )
             self.performBlockCentering()
             self.sendCommand("r" + str(new_frontend))
+            if center_after_change:
+                self.performBlockCentering()
             return
 
     def avoidFrontWall(self):

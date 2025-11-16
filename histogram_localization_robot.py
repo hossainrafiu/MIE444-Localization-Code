@@ -62,6 +62,14 @@ def block_type_detected_V2(readings: list) -> int:
         return count
 
 
+def robotMoveForward():
+    robot.obstacleAvoidance(ping=False)
+    robot.pingSensors()
+    plt.subplot(1, 2, 2)
+    plt.cla()
+    robot.plotSensorData(plt=plt)
+
+
 ############### Initialize ##############
 ### Source to display
 SOURCE = "serial device " + PORT_SERIAL
@@ -99,28 +107,29 @@ pathfinder = PathfindingRobot(
 plt.figure(num=1, figsize=(12, 6), clear=True)
 plt.subplot(1, 2, 1)
 
+robot.pingSensors()
+localizer.update_belief(block_type_detected(robot.ToFDistancesRaw))
 localizer.print_belief_summary()
 localizer.visualize_belief(plt, False)
 
 while True:
     print(
-        "Commands: 'w' = obstacle avoidance, 'wasd' = omni motion, 'yghj' = normal motion, 'q' = rotate CCW, 'e' = rotate CW,\n"
+        "Commands: 'w' = obstacle avoidance, 'wasd' = omni motion, 'yghj' = normal motion, 'q' = rotate CCW, 'e' = rotate CW,"
     )
     print(
-        "'l' = load/unload, 'p' = ping sensors, 'u' = update localization, 'us' = ultrasonic sensors, 'c' = centering\n"
+        "'l' = load/unload, 'p' = ping sensors, 'u' = update localization, 'us' = ultrasonic sensors, 'c' = centering"
     )
     val = input("Enter command: ")
-    # duration = ""
-    # if val not in ["w", "l", "p", "u", "us", "c", "o", "=", "z","x", "w", "a", "s", "d"]:
-    #     duration = input("Enter duration in milliseconds: ")
+    duration = 200
     if val.lower() == "l":
         robot.sendCommand("g")
+
     elif val.lower() == "p":
         robot.pingSensors()
-        # robot.pingSensors("u2")
         plt.subplot(1, 2, 2)
         plt.cla()
         robot.plotSensorData(plt=plt)
+
     elif val.lower() == "c":
         robot.sendCommand("c")
     elif val.lower() == "o":
@@ -131,65 +140,40 @@ while True:
         robot.sendCommand("x")
 
     elif val.lower() == "y":
-        robot.sendCommand("f200")
+        robot.sendCommand(f"f{duration}")
     elif val.lower() == "g":
-        robot.sendCommand("a200")
+        robot.sendCommand(f"a{duration}")
     elif val.lower() == "h":
-        robot.sendCommand("s200")
+        robot.sendCommand(f"s{duration}")
     elif val.lower() == "j":
-        robot.sendCommand("d200")
+        robot.sendCommand(f"d{duration}")
     elif val.lower() == "q":
-        robot.sendCommand("q200")
+        robot.sendCommand(f"q{duration}")
     elif val.lower() == "e":
-        robot.sendCommand("e200")
+        robot.sendCommand(f"e{duration}")
     elif val.lower() == "=":
         SER.close()
         break
+
     elif val.lower() == "w":
         if robot.currentFrontend != 0:
-            robot.sendCommand("r0")
-        robot.obstacleAvoidance(ping=False)
-        robot.pingSensors()
-        plt.subplot(1, 2, 2)
-        plt.cla()
-        robot.plotSensorData(plt=plt)
+            robot.changeFrontEnd(0)
+        robotMoveForward()
     elif val.lower() == "a":
         if robot.currentFrontend != 3:
-            robot.sendCommand("r3")
-        robot.obstacleAvoidance(ping=False)
-        robot.pingSensors()
-        plt.subplot(1, 2, 2)
-        plt.cla()
-        robot.plotSensorData(plt=plt)
+            robot.changeFrontEnd(3)
+        robotMoveForward()
     elif val.lower() == "s":
         if robot.currentFrontend != 2:
-            robot.sendCommand("r2")
-        robot.obstacleAvoidance(ping=False)
-        robot.pingSensors()
-        plt.subplot(1, 2, 2)
-        plt.cla()
-        robot.plotSensorData(plt=plt)
+            robot.changeFrontEnd(2)
+        robotMoveForward()
     elif val.lower() == "d":
         if robot.currentFrontend != 1:
-            robot.sendCommand("r1")
-        robot.obstacleAvoidance(ping=False)
-        robot.pingSensors()
-        plt.subplot(1, 2, 2)
-        plt.cla()
-        robot.plotSensorData(plt=plt)
+            robot.changeFrontEnd(1)
+        robotMoveForward()
     elif val.lower() == "u":
-        robot.pingSensors()
-        observed_block_type = block_type_detected(robot.ToFDistancesRaw)
-        print(f"Observed block type: {observed_block_type}")
-        # print(gameMap)
-        # block_type = input(
-        #     f"\nDetected block type: {observed_block_type}\n Enter block type you want to update histogram localization with: "
-        # )
-        localizer.update_belief(int(observed_block_type))
-        plt.subplot(1, 2, 1)
-        plt.cla()
-        localizer.visualize_belief(plt, False)
-        movement = input("Enter movement to predict (f, l, r, b): ")
+        # Movement Update
+        movement = input("Enter movement made (w, a, s, d): ")
         movement_map = {
             "w": "forward",
             "s": "backward",
@@ -197,6 +181,14 @@ while True:
             "d": "right",
         }
         localizer.predict_motion(movement_map[movement])
+        plt.subplot(1, 2, 1)
+        plt.cla()
+        localizer.visualize_belief(plt, False)
+        # Sensor Update
+        robot.pingSensors()
+        observed_block_type = block_type_detected(robot.ToFDistancesRaw)
+        print(f"Observed block type: {observed_block_type}")
+        localizer.update_belief(int(observed_block_type))
         plt.subplot(1, 2, 1)
         plt.cla()
         localizer.visualize_belief(plt, False)
