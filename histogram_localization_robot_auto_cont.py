@@ -73,12 +73,13 @@ localizer.visualize_belief(plt, False)
 RUN_STARTUP_CODE = True
 TRIAL_STARTUP = False
 
-robot.sendCommand("v") # Resets Arduino
-time.sleep(5)  # Wait for Arduino to reset
+# robot.sendCommand("v") # Resets Arduino
+# time.sleep(5)  # Wait for Arduino to reset
 
 if RUN_STARTUP_CODE:
     if TRIAL_STARTUP:
-        robot.centering()
+        # robot.centering()
+        robot.sendCommand("c")
     robot.pingSensors()
     plt.subplot(1, 2, 2)
     robot.plotSensorData(plt=plt)
