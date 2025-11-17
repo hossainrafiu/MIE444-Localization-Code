@@ -44,6 +44,17 @@ robot = RobotDrive(
 omnidrive_mode = True
 localizer = HistogramLocalization()
 
+def reset_histogram_localization():
+    localizer = HistogramLocalization()
+    robot.pingSensors()
+    plt.subplot(1, 2, 2)
+    robot.plotSensorData(plt=plt)
+    _observed_block_type = block_type_detected(robot.ToFDistancesRaw)
+    print(f"Detected block type: {_observed_block_type}")
+    localizer.update_belief(_observed_block_type)
+    plt.subplot(1, 2, 1)
+    localizer.visualize_belief(plt, False)
+
 load_pick_up_location = [1, 1]  # (row, col)
 with_load = False
 unload_drop_off_location = [3, 7]  # (row, col)
@@ -71,6 +82,7 @@ if RUN_STARTUP_CODE:
     observed_block_type = block_type_detected(robot.ToFDistancesRaw)
     print(f"Detected block type: {observed_block_type}")
     localizer.update_belief(observed_block_type)
+    plt.subplot(1, 2, 1)
     localizer.visualize_belief(plt, False)
 
 updateHistogram = False
@@ -88,6 +100,9 @@ while True:
         )
     else:
         action = ""
+        
+    print(f"Action decided by pathfinder: {action}")
+    plt.pause(5)
 
     if action == "":
         print(
@@ -106,6 +121,7 @@ while True:
                 updateHistogram = True
             else:
                 print("ERROR: Obstacle detected ahead, cannot move forward.")
+                reset_histogram_localization()
         else:
             robot.changeFrontEnd(0)
     if action == "right":
@@ -115,6 +131,7 @@ while True:
                 updateHistogram = True
             else:
                 print("ERROR: Obstacle detected ahead, cannot move forward.")
+                reset_histogram_localization()
         else:
             robot.changeFrontEnd(1)
     if action == "backward":
@@ -124,6 +141,7 @@ while True:
                 updateHistogram = True
             else:
                 print("ERROR: Obstacle detected ahead, cannot move forward.")
+                reset_histogram_localization()
         else:
             robot.changeFrontEnd(2)
     if action == "left":
@@ -133,6 +151,7 @@ while True:
                 updateHistogram = True
             else:
                 print("ERROR: Obstacle detected ahead, cannot move forward.")
+                reset_histogram_localization()
         else:
             robot.changeFrontEnd(3)
     if action == "wait":
@@ -145,7 +164,14 @@ while True:
         ############### Histogram Localization Update ##############
 
         # Movement We just made
-        localizer.predict_motion(robot.currentFrontend)
+        movement = robot.currentFrontend
+        movement_map = {
+            0: "forward",
+            1: "right",
+            2: "backward",
+            3: "left",
+        }
+        localizer.predict_motion(movement_map[movement])
 
         # Ping Sensors
         robot.pingSensors()
@@ -161,3 +187,5 @@ while True:
         localizer.update_belief(block_type)
         plt.subplot(1, 2, 1)
         localizer.visualize_belief(plt, False)
+        
+        updateHistogram = False

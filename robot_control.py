@@ -22,10 +22,14 @@ class RobotDrive:
         self.ToFDistancesRaw = [8000, 8000, 8000, 8000]
         self.currentFrontend = 0
 
-        self.centeringThreshold = 50  # mm
-        self.centeringCheckArray = [[50, 150], [400, 500], [675, 775]]
-        self.inCenterOfNextBlock = False
+        self.lastLoadToFDistances = [8000, 8000]  # top, bottom
+        self.LoadToFDistances = [8000, 8000]  # top, bottom
+
+        self.hasPassedCenter = False
         self.pauseInCenter = True
+        self.previousOffset = 0
+
+        self.autoChangeFrontEnd = False
 
     def pingSensors(self, raw_cmd="p", try_again=True):
         packet_tx = self.packetize(raw_cmd)
@@ -96,7 +100,7 @@ class RobotDrive:
         # For adjacent frontends, perform centering checks
         if self.verboseConsole:
             print("Changing frontend with centering checks.")
-        centered, _ = self.checkCentering()
+        centered, _ = self.centreinblock()
         if centered:
             if self.verboseConsole:
                 print("Robot is well centered, changing frontend directly.")
@@ -120,7 +124,7 @@ class RobotDrive:
         if self.verboseConsole:
             print("Obstacle detected in front, backing up and rotating.")
         self.sendCommand("s100")
-        if self.OMNIWHEELDRIVE:
+        if self.OMNIWHEELDRIVE and self.autoChangeFrontEnd:
             if self.ToFDistances[1] < 150:
                 new_front = (self.currentFrontend + 3) % 4
                 self.sendCommand(f"r{new_front}")
@@ -140,35 +144,44 @@ class RobotDrive:
                 self.sendCommand("e900")
 
     def avoidSideWalls(self):
-        if self.ToFDistances[1] < 60:
+        # Against the wall is 30 mm
+        if self.ToFDistances[1] < 50:
             # Avoiding right wall collisions
             if self.verboseConsole:
                 print(
                     f"Obstacle too close on the right sensor: {self.ToFDistances[1]}mm, veering left."
                 )
-            movement_duration = max(
-                60 - self.ToFDistances[1] * 10, 200
-            )  # Adjust duration based on distance
+            movement_duration = (
+                75 - self.ToFDistances[1]
+            ) * 5  # Adjust duration based on distance
             self.sendCommand(f"a{movement_duration}")
+            time.sleep(movement_duration / 1000)
+            movement_duration /= 2
+            self.sendCommand(f"q{movement_duration}")
+            time.sleep(movement_duration / 1000)
             return True
 
-        elif self.ToFDistances[3] < 60:
+        elif self.ToFDistances[3] < 50:
             # Avoiding left wall collisions
             if self.verboseConsole:
                 print(
                     f"Obstacle too close on the left sensor: {self.ToFDistances[3]}mm, veering right."
                 )
-            movement_duration = max(
-                60 - self.ToFDistances[3] * 10, 200
-            )  # Adjust duration based on distance
+            movement_duration = (
+                75 - self.ToFDistances[3]
+            ) * 5  # Adjust duration based on distance
             self.sendCommand(f"d{movement_duration}")
+            time.sleep(movement_duration / 1000)
+            movement_duration /= 2
+            self.sendCommand(f"e{movement_duration}")
+            time.sleep(movement_duration / 1000)
             return True
         return False
 
     def hugSideWalls(self):
         if (
             self.ToFDistances[3] > 90
-            and self.ToFDistances[3] < 150
+            and self.ToFDistances[3] < 180
             and self.ToFDistances[1] >= 150
         ):
             if self.verboseConsole:
@@ -176,13 +189,17 @@ class RobotDrive:
                     f"Too far from left sensor: {self.ToFDistances[3]}mm, veering left."
                 )
             movement_duration = max(
-                self.ToFDistances[3] - 90, 100
+                (self.ToFDistances[3] - 75) * 5, 100
             )  # Adjust duration based on distance
             self.sendCommand(f"a{movement_duration}")
+            time.sleep(movement_duration / 1000)
+            movement_duration /= 2
+            self.sendCommand(f"q{movement_duration}")
+            time.sleep(movement_duration / 1000)
 
         elif (
             self.ToFDistances[1] > 90
-            and self.ToFDistances[1] < 150
+            and self.ToFDistances[1] < 180
             and self.ToFDistances[3] >= 150
         ):
             if self.verboseConsole:
@@ -190,9 +207,13 @@ class RobotDrive:
                     f"Too far from right sensor: {self.ToFDistances[1]}mm, veering right."
                 )
             movement_duration = max(
-                self.ToFDistances[1] - 90, 100
+                (self.ToFDistances[1] - 75) * 5, 100
             )  # Adjust duration based on distance
             self.sendCommand(f"d{movement_duration}")
+            time.sleep(movement_duration / 1000 + 0.5)
+            movement_duration /= 2.1
+            self.sendCommand(f"e{movement_duration}")
+            time.sleep(movement_duration / 1000 + 0.5)
 
     def obstacleAvoidance(self, ping=True, duration=500):
         if self.verboseConsole:
@@ -210,15 +231,14 @@ class RobotDrive:
             print("Path clear, moving forward.")
         self.sendCommand(f"f{duration}")
 
-    def obstacleAvoidanceContinuous(self, ping=True, duration=30000):
-        while not (self.inCenterOfNextBlock and self.pauseInCenter):
+    def obstacleAvoidanceContinuous(self, ping=True, duration=1000):
+        self.hasPassedCenter = False
+        while not (self.hasPassedCenter and self.pauseInCenter):
             if self.verboseConsole:
                 print("Starting obstacle avoidance routine...")
 
             if ping:
                 self.pingSensors()
-
-            # self.avoidCornersIfTurning()
 
             if self.ToFDistances[0] < 60:
                 self.avoidFrontWall()
@@ -229,10 +249,11 @@ class RobotDrive:
             if self.verboseConsole:
                 print("Path clear, moving forward.")
             self.sendCommand(f"f{duration}")
-            time.sleep(0.1)
+            # time.sleep(0.1)
             # self.checkCentering()
             self.centreinblock()
         self.sendCommand("h")
+        self.performBlockCentering()
 
     def plotSensorData(self, plt):
         sensors = []
@@ -385,68 +406,17 @@ class RobotDrive:
                 print("Originally well aligned, no adjustment needed.")
             self.sendCommand("e100")  # rotate back to original position
 
-    def checkCentering(self, ping=True):
-        if ping:
-            self.pingSensors()
-        # Get readings from just front and back ToF sensors
-        front_reading = self.ToFDistances[0]
-        back_reading = self.ToFDistances[2]
-        if front_reading < back_reading:
-            main_reading = front_reading + 75
-            main_index = 0
-        else:
-            main_reading = back_reading + 75
-            main_index = 2
-        old_main_reading = self.lastToFDistances[main_index] + 75
-        # Determine offcenter range to use
-        check_in_range = main_reading // 300
-        check_range = self.centeringCheckArray[min(check_in_range, 2)]
-
-        # Using histerisis to prevent rapid toggling of inCenterOfNextBlock flag
-        # Set inCenterOfNextBlock flag if first range value is passed
-        if old_main_reading < check_range[0] and main_reading >= check_range[0]:
-            self.inCenterOfNextBlock = True
-        # Clear inCenterOfNextBlock flag if second range value is passed
-        if old_main_reading < check_range[1] and main_reading >= check_range[1]:
-            self.inCenterOfNextBlock = False
-
-        print(f"Centering Check: Main Reading = {main_reading}mm, Range = {check_range}")
-        # return centering status and offcenter distance
-        if main_reading < check_range[0]:
-            offcenter = check_range[0] - main_reading
-            if self.verboseConsole:
-                print(
-                    f"Robot is before the center of the block (Off Center: {offcenter}mm)."
-                )
-            return [False, offcenter]
-        elif main_reading > check_range[1]:
-            # Should be negative to indicate backwards movement needed
-            offcenter = check_range[1] - main_reading
-            if self.verboseConsole:
-                print(
-                    f"Robot is beyond the center of the block (Off Center: {offcenter}mm)."
-                )
-            return [False, offcenter]
-        else:
-            if self.verboseConsole:
-                print(
-                    f"Robot is well centered within the block (main_reading: {main_reading}mm)."
-                )
-            offcenter = 0
-            return [True, offcenter]
-        return
-
     def performBlockCentering(self):
         centered = False
         while not centered:
-            [centered, offcenter] = self.checkCentering()
+            [centered, offcenter] = self.centreinblock()
             if not centered:
                 if offcenter > 0:
                     if self.verboseConsole:
                         print(
                             f"Robot is before the center of the block, moving forward by {offcenter}mm."
                         )
-                    duration = min(offcenter * 5, 1000)
+                    duration = min(offcenter * 8, 1000)
                     self.sendCommand(f"f{duration}")
                     time.sleep(duration / 1000 + 0.5)
                 else:
@@ -454,33 +424,103 @@ class RobotDrive:
                         print(
                             f"Robot is beyond the center of the block, moving backward by {abs(offcenter)}mm."
                         )
-                    duration = min(abs(offcenter) * 5, 1000)
+                    duration = min(abs(offcenter) * 8, 1000)
                     self.sendCommand(f"s{duration}")
                     time.sleep(duration / 1000 + 0.5)
-    
-    def centreinblock(self):
-        self.pingSensors()
-        blocklength=305 #Length of a block
-        tolerance=25    #tolerance around center
-        middle=76       #reading from sensor when centered
-        mult=1          #used to correct signed direction of travel to center 
-        correction=0
-        minDis=min(self.ToFDistances[0]+middle,self.ToFDistances[2]+middle) #Shortest length between front and back wall corrected to robot center 
-        if(minDis//305==1):
-            correction=20
-        elif(minDis//305>1):
-            correction=40
-        minDis=minDis-correction
-        if(self.ToFDistances[0]<self.ToFDistances[2]): # Sets mult based on larger front or back length (1 forward, -1 backwards)
-            mult=-1
-        print("Robot distance wall:"+str(minDis))
-        minDis=minDis%blocklength   #distance from biginning of current block to robot center 
-        print("Robot distance to start of block:"+str(minDis))
-        middleDis=2*middle-minDis   #distance from robot center to block center
-        print("Distance to center of block:"+str(middleDis*mult))
-        if(-tolerance<middleDis<tolerance): # if block center distance is whithin tolerance, robot is in center
-            self.inCenterOfNextBlock=True
-            return [True, middleDis*mult]
+
+    def centreinblock(self, ping=True):
+        if ping:
+            self.pingSensors()
+        blocklength = 305  # Length of a block
+        tolerance = 25  # tolerance around center
+        middle = 76  # reading from sensor when centered
+        mult = 1  # used to correct signed direction of travel to center
+        correction = 0
+        minDis = min(
+            self.ToFDistances[0] + middle, self.ToFDistances[2] + middle
+        )  # Shortest length between front and back wall corrected to robot center
+        if minDis // 305 == 1:
+            correction = 20
+        elif minDis // 305 > 1:
+            correction = 40
+        minDis = minDis - correction
+        if (
+            self.ToFDistances[0] < self.ToFDistances[2]
+        ):  # Sets mult based on larger front or back length (1 forward, -1 backwards)
+            mult = -1
+        print("Robot distance wall:" + str(minDis))
+        minDis = (
+            minDis % blocklength
+        )  # distance from biginning of current block to robot center
+        print("Robot distance to start of block:" + str(minDis))
+        middleDis = 2 * middle - minDis  # distance from robot center to block center
+        print("Distance to center of block:" + str(middleDis * mult))
+        middleDis *= mult
+
+        if middleDis < 25 and self.previousOffset > 25:
+            self.hasPassedCenter = True
+        self.previousOffset = middleDis
+
+        if (
+            -tolerance < middleDis < tolerance
+        ):  # if block center distance is whithin tolerance, robot is in center
+            print("Robot is centered in block!!!")
+            return [True, middleDis]
         else:
-            self.inCenterOfNextBlock=False
-            return [False, middleDis*mult]
+            self.pauseInCenter = True
+            return [False, middleDis]
+
+    def pingLoadSensors(self, try_again=True):
+        raw_cmd = "v"
+        packet_tx = self.packetize(raw_cmd)
+        if packet_tx:
+            self.transmit(packet_tx)
+        start_time = time.time()
+        while time.time() - start_time < self.RESPONSE_TIMEOUT:
+            [responses, time_rx] = self.receive()
+            if responses[0] == raw_cmd:
+                continue
+            if responses[0] != "+" and responses[0] is not False:
+                break
+        if self.verboseConsole:
+            print(f"Sensor Responses at {time_rx}: {responses}")
+            # Check validity of responses
+            if len(responses) != 2:
+                if self.verboseConsole:
+                    print("Invalid sensor response length, trying again.")
+                    if try_again:
+                        self.pingSensors(raw_cmd, try_again=False)
+                return
+        self.lastLoadToFDistances = self.LoadToFDistances.copy()
+        for i in range(2):
+            self.LoadToFDistances[i] = int(responses[i])
+
+    def detectLoad(self):
+        self.sendCommand("r0")
+        TOLERANCE = 50
+        TURN_DURATION = 50
+        self.pingLoadSensors()
+        while abs(self.LoadToFDistances[0] - self.LoadToFDistances[1]) < TOLERANCE:
+            self.sendCommand(f"q{TURN_DURATION}")
+            time.sleep(0.1)
+            self.pingLoadSensors()
+            # EXPERIMENTAL CHECKING FOR CHANGE DIFF
+            topDiff = self.lastLoadToFDistances[0] - self.LoadToFDistances[0]
+            bottomDiff = self.lastLoadToFDistances[1] - self.LoadToFDistances[1]
+            print(
+                f"Top: {self.LoadToFDistances[0]}  Bottom: {self.LoadToFDistances[1]}"
+            )
+            print(f"Top Diff: {topDiff}  Bottom Diff: {bottomDiff}")
+
+        while self.LoadToFDistances[1] > 50:
+            self.sendCommand("f50")
+            self.sendCommand("d50")
+
+        # GRIPPER PROCEDURE
+        servo0, servo0_up, servo0_down = 0, 50, 200
+        servo1, servo1_open, servo1_close = 1, 50, 200
+
+        self.sendCommand(f"l{servo1}{servo1_open}")
+        self.sendCommand(f"l{servo0}{servo0_down}")
+        self.sendCommand(f"l{servo1}{servo1_close}")
+        self.sendCommand(f"l{servo0}{servo0_up}")

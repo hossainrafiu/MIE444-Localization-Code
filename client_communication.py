@@ -10,6 +10,7 @@ class ClientCommunication:
     # Wrapper functions
     def transmit(self, data):
         """Selects whether to use serial or tcp for transmitting."""
+        print(f"Transmitting at: {datetime.now().strftime('%H:%M:%S:%f')}")
         self.transmit_serial(data)
 
     def receive(self):
@@ -24,19 +25,19 @@ class ClientCommunication:
 
     def receive_serial(self):
         """Receive a reply over a serial connection."""
-
+        self.SER.timeout = 0.1  # Short timeout to start reading
         start_time = time.time()
         response_raw = ""
         while time.time() < start_time + TIMEOUT_SERIAL:
-            if self.SER.in_waiting:
-                response_char = self.SER.read().decode("ascii")
-                if response_char == FRAMEEND:
-                    response_raw += response_char
-                    break
-                else:
-                    response_raw += response_char
+            response_char = self.SER.read()
+            response_char = response_char.decode("ascii")
+            if response_char == FRAMEEND:
+                response_raw += response_char
+                break
+            else:
+                response_raw += response_char
 
-        print(f"Raw response was: {response_raw}")
+        print(f"Raw response was: {response_raw} at {datetime.now().strftime('%H:%M:%S:%f')}")
 
         # If response received, return it
         if response_raw:
@@ -81,14 +82,14 @@ class ClientCommunication:
         check_fail = any(char in data for char in forbidden)
 
         if not check_fail:
-            return FRAMESTART + data + FRAMEEND
+            return FRAMESTART + data + FRAMEEND + "\n"
 
         return False
 
 
 ############## Constant Definitions Begin ##############
 ### Serial Setup ###
-BAUDRATE = 115200  # Baudrate in bps
+BAUDRATE = 9600  # Baudrate in bps
 PORT_SERIAL = "COM8"  # COM port identification
 TIMEOUT_SERIAL = 3  # Serial port timeout, in seconds
 

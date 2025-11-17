@@ -126,7 +126,12 @@ while True:
         robot.sendCommand("g")
         
     elif val.lower() == "f":
-        robot.obstacleAvoidanceContinuous()
+        robot.obstacleAvoidanceContinuous(200)
+    elif val.lower() == "f1":
+        robot.avoidSideWalls()
+    elif val.lower() == "f2":
+        robot.hugSideWalls()
+    
 
     elif val.lower() == "p":
         robot.pingSensors()
@@ -137,7 +142,7 @@ while True:
     elif val.lower() == "c":
         # robot.sendCommand("c")
         robot.centreinblock()
-        robot.checkCentering()
+        # robot.checkCentering()
     elif val.lower() == "o":
         robot.sendCommand("o")
     elif val.lower() == "z":
@@ -179,12 +184,12 @@ while True:
         robotMoveForward()
     elif val.lower() == "u":
         # Movement Update
-        movement = input("Enter movement made (w, a, s, d): ")
+        movement = robot.currentFrontend
         movement_map = {
-            "w": "forward",
-            "s": "backward",
-            "a": "left",
-            "d": "right",
+            0: "forward",
+            1: "right",
+            2: "backward",
+            3: "left",
         }
         localizer.predict_motion(movement_map[movement])
         plt.subplot(1, 2, 1)
@@ -198,3 +203,4 @@ while True:
         plt.subplot(1, 2, 1)
         plt.cla()
         localizer.visualize_belief(plt, False)
+        robot.pauseInCenter = False
