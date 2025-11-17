@@ -66,12 +66,14 @@ class RobotDrive:
                 self.USDistancesRaw[i] = int(responses[i])
                 self.USDistances[sensor_index] = int(responses[i])
 
-    def sendCommand(self, raw_cmd):
+    def sendCommand(self, raw_cmd, timeout=0):
+        if timeout == 0:
+            timeout = self.RESPONSE_TIMEOUT
         packet_tx = self.packetize(raw_cmd)
         if packet_tx:
             self.transmit(packet_tx)
         start_time = time.time()
-        while time.time() - start_time < self.RESPONSE_TIMEOUT:
+        while time.time() - start_time < timeout:
             [responses, time_rx] = self.receive()
             if responses[0] == raw_cmd:
                 continue
@@ -233,7 +235,7 @@ class RobotDrive:
             print("Path clear, moving forward.")
         self.sendCommand(f"f{duration}")
 
-    def obstacleAvoidanceContinuous(self, ping=True, duration=100):
+    def obstacleAvoidanceContinuous(self, ping=True, duration=200):
         self.hasPassedCenter = False
         while not (self.hasPassedCenter and self.pauseInCenter):
             if self.verboseConsole:

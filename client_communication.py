@@ -10,7 +10,7 @@ class ClientCommunication:
     # Wrapper functions
     def transmit(self, data):
         """Selects whether to use serial or tcp for transmitting."""
-        print(f"Transmitting at: {datetime.now().strftime('%H:%M:%S:%f')}")
+        print(f"Transmitting {data} at: {datetime.now().strftime('%H:%M:%S:%f')}")
         self.transmit_serial(data)
 
     def receive(self):

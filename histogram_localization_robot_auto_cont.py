@@ -71,7 +71,7 @@ localizer.print_belief_summary()
 localizer.visualize_belief(plt, False)
 
 RUN_STARTUP_CODE = True
-TRIAL_STARTUP = False
+TRIAL_STARTUP = True
 
 # robot.sendCommand("v") # Resets Arduino
 # time.sleep(5)  # Wait for Arduino to reset
@@ -79,7 +79,7 @@ TRIAL_STARTUP = False
 if RUN_STARTUP_CODE:
     if TRIAL_STARTUP:
         # robot.centering()
-        robot.sendCommand("c")
+        robot.sendCommand("c", 100000000)
     robot.pingSensors()
     plt.subplot(1, 2, 2)
     robot.plotSensorData(plt=plt)
@@ -118,9 +118,11 @@ while True:
         else:
             newFrontend = (robot.currentFrontend + 1) % 4
             robot.changeFrontEnd(newFrontend)
+            robot.pingSensors()
     if action == "forward":
         if robot.currentFrontend != 0:
             robot.changeFrontEnd(0)
+            robot.pingSensors()
         if robot.ToFDistances[0] > 150:
             robot.obstacleAvoidanceContinuous()
             updateHistogram = True
@@ -130,6 +132,7 @@ while True:
     if action == "right":
         if robot.currentFrontend != 1:
             robot.changeFrontEnd(1)
+            robot.pingSensors()
         if robot.ToFDistances[0] > 150:
             robot.obstacleAvoidanceContinuous()
             updateHistogram = True
@@ -139,6 +142,7 @@ while True:
     if action == "backward":
         if robot.currentFrontend != 2:
             robot.changeFrontEnd(2)
+            robot.pingSensors()
         if robot.ToFDistances[0] > 150:
             robot.obstacleAvoidanceContinuous()
             updateHistogram = True
@@ -148,6 +152,7 @@ while True:
     if action == "left":
         if robot.currentFrontend != 3:
             robot.changeFrontEnd(3)
+            robot.pingSensors()
         if robot.ToFDistances[0] > 150:
             robot.obstacleAvoidanceContinuous()
             updateHistogram = True
@@ -177,6 +182,7 @@ while True:
         robot.pingSensors()
         print(f"Sensor Ping Responses: {robot.ToFDistancesRaw}")
         plt.subplot(1, 2, 2)
+        plt.cla()
         robot.plotSensorData(plt=plt)
 
         # Detect Block Type
@@ -186,6 +192,7 @@ while True:
         # Update Histogram Localization
         localizer.update_belief(block_type)
         plt.subplot(1, 2, 1)
+        plt.cla()
         localizer.visualize_belief(plt, False)
         
         updateHistogram = False
