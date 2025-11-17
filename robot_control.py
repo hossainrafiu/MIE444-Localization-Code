@@ -178,7 +178,7 @@ class RobotDrive:
             return True
         return False
 
-    def hugSideWalls(self):
+    def hugSideWalls(self, rotation=False):
         if (
             self.ToFDistances[3] > 90
             and self.ToFDistances[3] < 180
@@ -193,9 +193,10 @@ class RobotDrive:
             )  # Adjust duration based on distance
             self.sendCommand(f"a{movement_duration}")
             time.sleep(movement_duration / 1000)
-            movement_duration /= 2
-            self.sendCommand(f"q{movement_duration}")
-            time.sleep(movement_duration / 1000)
+            if rotation:
+                movement_duration /= 4
+                self.sendCommand(f"q{movement_duration}")
+                time.sleep(movement_duration / 1000)
 
         elif (
             self.ToFDistances[1] > 90
@@ -211,9 +212,10 @@ class RobotDrive:
             )  # Adjust duration based on distance
             self.sendCommand(f"d{movement_duration}")
             time.sleep(movement_duration / 1000 + 0.5)
-            movement_duration /= 2.1
-            self.sendCommand(f"e{movement_duration}")
-            time.sleep(movement_duration / 1000 + 0.5)
+            if rotation:
+                movement_duration /= 4
+                self.sendCommand(f"e{movement_duration}")
+                time.sleep(movement_duration / 1000 + 0.5)
 
     def obstacleAvoidance(self, ping=True, duration=500):
         if self.verboseConsole:
@@ -231,7 +233,7 @@ class RobotDrive:
             print("Path clear, moving forward.")
         self.sendCommand(f"f{duration}")
 
-    def obstacleAvoidanceContinuous(self, ping=True, duration=1000):
+    def obstacleAvoidanceContinuous(self, ping=True, duration=100):
         self.hasPassedCenter = False
         while not (self.hasPassedCenter and self.pauseInCenter):
             if self.verboseConsole:
@@ -240,7 +242,7 @@ class RobotDrive:
             if ping:
                 self.pingSensors()
 
-            if self.ToFDistances[0] < 60:
+            if self.ToFDistances[0] < 90:
                 self.avoidFrontWall()
 
             if not self.avoidSideWalls():
@@ -471,6 +473,7 @@ class RobotDrive:
             return [False, middleDis]
 
     def pingLoadSensors(self, try_again=True):
+        CALIBRATION_OFFSET = 200
         raw_cmd = "v"
         packet_tx = self.packetize(raw_cmd)
         if packet_tx:
@@ -492,10 +495,12 @@ class RobotDrive:
                         self.pingSensors(raw_cmd, try_again=False)
                 return
         self.lastLoadToFDistances = self.LoadToFDistances.copy()
-        for i in range(2):
-            self.LoadToFDistances[i] = int(responses[i])
+        self.LoadToFDistances[0] = int(responses[0])
+        self.LoadToFDistances[1] = int(responses[1])
 
     def detectLoad(self):
+        self.sendCommand("z")
+        self.sendCommand("z")
         self.sendCommand("r0")
         TOLERANCE = 50
         TURN_DURATION = 50
@@ -512,15 +517,45 @@ class RobotDrive:
             )
             print(f"Top Diff: {topDiff}  Bottom Diff: {bottomDiff}")
 
-        while self.LoadToFDistances[1] > 50:
+        while self.LoadToFDistances[1] > 130:
             self.sendCommand("f50")
+            time.sleep(0.1)
             self.sendCommand("d50")
+            time.sleep(0.1)
+            self.pingLoadSensors()
 
         # GRIPPER PROCEDURE
-        servo0, servo0_up, servo0_down = 0, 50, 200
-        servo1, servo1_open, servo1_close = 1, 50, 200
+        servo0, servo0_up, servo0_down = 0, 120, 10
+        servo1, servo1_open, servo1_close = 1, 0, 110
 
         self.sendCommand(f"l{servo1}{servo1_open}")
+        time.sleep(0.5)
         self.sendCommand(f"l{servo0}{servo0_down}")
+        time.sleep(0.5)
+        
+        for _ in range(10):
+            self.sendCommand("f50")
+            time.sleep(0.1)
+            self.sendCommand("d50")
+            time.sleep(0.1)
+        
         self.sendCommand(f"l{servo1}{servo1_close}")
+        time.sleep(0.5)
         self.sendCommand(f"l{servo0}{servo0_up}")
+        time.sleep(0.5)
+        
+        self.sendCommand("x")
+        self.sendCommand("x")
+        
+
+    def dropLoad(self):
+        # GRIPPER PROCEDURE
+        servo0, servo0_up, servo0_down = 0, 120, 10
+        servo1, servo1_open, servo1_close = 1, 0, 110
+
+        self.sendCommand(f"l{servo0}{servo0_down}")
+        time.sleep(0.5)
+        self.sendCommand(f"l{servo1}{servo1_open}")
+        time.sleep(0.5)
+        self.sendCommand(f"l{servo0}{servo0_up}")
+        time.sleep(0.5)

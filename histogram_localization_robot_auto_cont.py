@@ -73,6 +73,9 @@ localizer.visualize_belief(plt, False)
 RUN_STARTUP_CODE = True
 TRIAL_STARTUP = False
 
+robot.sendCommand("v") # Resets Arduino
+time.sleep(5)  # Wait for Arduino to reset
+
 if RUN_STARTUP_CODE:
     if TRIAL_STARTUP:
         robot.centering()
@@ -102,7 +105,7 @@ while True:
         action = ""
         
     print(f"Action decided by pathfinder: {action}")
-    plt.pause(5)
+    plt.pause(0.5)
 
     if action == "":
         print(
@@ -115,50 +118,46 @@ while True:
             newFrontend = (robot.currentFrontend + 1) % 4
             robot.changeFrontEnd(newFrontend)
     if action == "forward":
-        if robot.currentFrontend == 0:
-            if robot.ToFDistances[0] > 150:
-                robot.obstacleAvoidanceContinuous()
-                updateHistogram = True
-            else:
-                print("ERROR: Obstacle detected ahead, cannot move forward.")
-                reset_histogram_localization()
-        else:
+        if robot.currentFrontend != 0:
             robot.changeFrontEnd(0)
+        if robot.ToFDistances[0] > 150:
+            robot.obstacleAvoidanceContinuous()
+            updateHistogram = True
+        else:
+            print("ERROR: Obstacle detected ahead, cannot move forward.")
+            reset_histogram_localization()
     if action == "right":
-        if robot.currentFrontend == 1:
-            if robot.ToFDistances[0] > 150:
-                robot.obstacleAvoidanceContinuous()
-                updateHistogram = True
-            else:
-                print("ERROR: Obstacle detected ahead, cannot move forward.")
-                reset_histogram_localization()
-        else:
+        if robot.currentFrontend != 1:
             robot.changeFrontEnd(1)
+        if robot.ToFDistances[0] > 150:
+            robot.obstacleAvoidanceContinuous()
+            updateHistogram = True
+        else:
+            print("ERROR: Obstacle detected ahead, cannot move forward.")
+            reset_histogram_localization()
     if action == "backward":
-        if robot.currentFrontend == 2:
-            if robot.ToFDistances[0] > 150:
-                robot.obstacleAvoidanceContinuous()
-                updateHistogram = True
-            else:
-                print("ERROR: Obstacle detected ahead, cannot move forward.")
-                reset_histogram_localization()
-        else:
+        if robot.currentFrontend != 2:
             robot.changeFrontEnd(2)
-    if action == "left":
-        if robot.currentFrontend == 3:
-            if robot.ToFDistances[0] > 150:
-                robot.obstacleAvoidanceContinuous()
-                updateHistogram = True
-            else:
-                print("ERROR: Obstacle detected ahead, cannot move forward.")
-                reset_histogram_localization()
+        if robot.ToFDistances[0] > 150:
+            robot.obstacleAvoidanceContinuous()
+            updateHistogram = True
         else:
+            print("ERROR: Obstacle detected ahead, cannot move forward.")
+            reset_histogram_localization()
+    if action == "left":
+        if robot.currentFrontend != 3:
             robot.changeFrontEnd(3)
+        if robot.ToFDistances[0] > 150:
+            robot.obstacleAvoidanceContinuous()
+            updateHistogram = True
+        else:
+            print("ERROR: Obstacle detected ahead, cannot move forward.")
+            reset_histogram_localization()
     if action == "wait":
         robot.sendCommand("h")
-    if action == "pickup" or action == "dropoff":
-        robot.sendCommand("l")
-        with_load = not with_load
+    if action == "pickup" or action == "dropoff" or action == "arrived":
+        # robot.sendCommand("l")
+        pathfinder.set_load_status(True)
 
     if updateHistogram:
         ############### Histogram Localization Update ##############

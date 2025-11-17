@@ -43,7 +43,7 @@ class ClientCommunication:
         if response_raw:
             return [self.depacketize(response_raw), datetime.now().strftime("%H:%M:%S")]
         else:
-            return [False]
+            return [[False], ""]
 
     def clear_serial(self, delay_time: float = 0):
         """Wait some time (delay_time) and then clear the serial buffer."""
@@ -89,7 +89,7 @@ class ClientCommunication:
 
 ############## Constant Definitions Begin ##############
 ### Serial Setup ###
-BAUDRATE = 9600  # Baudrate in bps
+BAUDRATE = 115200  # Baudrate in bps
 PORT_SERIAL = "COM8"  # COM port identification
 TIMEOUT_SERIAL = 3  # Serial port timeout, in seconds
 

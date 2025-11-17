@@ -123,7 +123,9 @@ while True:
     val = input("Enter command: ")
     duration = 200
     if val.lower() == "l":
-        robot.sendCommand("g")
+        robot.detectLoad()
+    if val.lower() == "ul":
+        robot.dropLoad()
         
     elif val.lower() == "f":
         robot.obstacleAvoidanceContinuous(200)
@@ -140,8 +142,8 @@ while True:
         robot.plotSensorData(plt=plt)
 
     elif val.lower() == "c":
-        # robot.sendCommand("c")
-        robot.centreinblock()
+        robot.sendCommand("c")
+        # robot.centreinblock()
         # robot.checkCentering()
     elif val.lower() == "o":
         robot.sendCommand("o")
