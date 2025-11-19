@@ -11,7 +11,10 @@ class ClientCommunication:
     # Wrapper functions
     def transmit(self, data):
         """Selects whether to use serial or tcp for transmitting."""
-        print(Fore.WHITE + f"Transmitting {data} at: {datetime.now().strftime('%H:%M:%S:%f')}")
+        print(
+            Fore.WHITE
+            + f"Transmitting {data} at: {datetime.now().strftime('%H:%M:%S:%f')}"
+        )
         self.transmit_serial(data)
 
     def receive(self):
@@ -38,7 +41,10 @@ class ClientCommunication:
             else:
                 response_raw += response_char
 
-        print(Fore.WHITE + f"Raw response was: {response_raw} at {datetime.now().strftime('%H:%M:%S:%f')}")
+        print(
+            Fore.WHITE
+            + f"Raw response was: {response_raw} at {datetime.now().strftime('%H:%M:%S:%f')}"
+        )
 
         # If response received, return it
         if response_raw:
@@ -50,7 +56,10 @@ class ClientCommunication:
         """Wait some time (delay_time) and then clear the serial buffer."""
         if self.SER.in_waiting:
             time.sleep(delay_time)
-            print(Fore.WHITE + f"Clearing Serial... Dumped: {self.SER.read(self.SER.in_waiting)}")
+            print(
+                Fore.WHITE
+                + f"Clearing Serial... Dumped: {self.SER.read(self.SER.in_waiting)}"
+            )
 
     # Packetization and validation functions
     def depacketize(self, data_raw: str):
