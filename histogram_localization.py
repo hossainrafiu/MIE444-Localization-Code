@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+from colorama import Fore
 
 # GameMap for Histogram Localization
 # Block Types:
@@ -9,16 +10,11 @@ import matplotlib.pyplot as plt
 # 3 - 3 Walls
 # 4 - 4 Walls (Enclosed and Unreachable)
 # 5 - Two Opposite Walls
-defaultGameMap = [
-    [2, 1, 5, 2, 4, 3, 4, 3],
-    [1, 2, 4, 2, 5, 0, 5, 1],
-    [5, 4, 3, 4, 4, 5, 4, 5],
-    [2, 5, 1, 5, 5, 2, 4, 3],
-]
+
 
 
 class HistogramLocalization:
-    def __init__(self, game_map=defaultGameMap, sensor_accuracy=0.8, omnidrive=True):
+    def __init__(self, game_map=None, sensor_accuracy=0.8, omnidrive=True):
         """
         Initialize the histogram localization filter.
 
@@ -28,6 +24,13 @@ class HistogramLocalization:
             omnidrive: If True, 'left' and 'right' commands strafe laterally without rotation.
                        If False, 'left' and 'right' rotate the robot in place.
         """
+        if game_map is None:
+            game_map = [
+                [2, 1, 5, 2, 4, 3, 4, 3],
+                [1, 2, 4, 2, 5, 0, 5, 1],
+                [5, 4, 3, 4, 4, 5, 4, 5],
+                [2, 5, 1, 5, 5, 2, 4, 3],
+            ]
         self.game_map = np.array(game_map)
         self.rows, self.cols = self.game_map.shape
         self.sensor_accuracy = sensor_accuracy
@@ -44,6 +47,31 @@ class HistogramLocalization:
             for j in range(self.cols):
                 if self.game_map[i, j] == 4:
                     self.belief[i, j, :] = 0.0
+
+        # Normalize the initial belief
+        self.normalize_belief()
+
+    def reset_belief(self):
+        # Initialize uniform probability distribution over (row, col, orientation)
+        # Exclude block type 4 (enclosed/unreachable) from possible positions
+        self.belief = np.ones((self.rows, self.cols, self.num_orientations))
+        for i in range(self.rows):
+            for j in range(self.cols):
+                if self.game_map[i, j] == 4:
+                    self.belief[i, j, :] = 0.0
+
+        # Normalize the initial belief
+        self.normalize_belief()
+    
+    def belief_in_loading_zone(self):
+        # Loading Zone from (0,0) to (1,1)
+        self.belief = np.ones((self.rows, self.cols, self.num_orientations))
+        for i in range(self.rows):
+            for j in range(self.cols):
+                if self.game_map[i, j] == 4:
+                    self.belief[i, j, :] = 0.0
+                elif not (0 <= i <= 1 and 0 <= j <= 1):
+                    self.belief[i, j, :] = 100.0
 
         # Normalize the initial belief
         self.normalize_belief()
@@ -181,7 +209,7 @@ class HistogramLocalization:
                                 i, j, orientation
                             ] * (1.0 - move_accuracy)
         else:
-            print(f"Invalid action: {action}")
+            print(Fore.WHITE + f"Invalid action: {action}")
             return
 
         self.belief = new_belief
@@ -194,8 +222,17 @@ class HistogramLocalization:
         Returns:
             tuple: (row, col, orientation) where orientation is 0=North, 1=East, 2=South, 3=West
         """
-        max_idx = np.unravel_index(np.argmax(self.belief), self.belief.shape)
-        return max_idx
+        # max_idx = np.unravel_index(np.argmax(self.belief), self.belief.shape)
+        # return max_idx
+        max_idx = [0, 0, 0]
+        max_prob = -1.0
+        for i in range(self.rows):
+            for j in range(self.cols):
+                for k in range(self.num_orientations):
+                    if self.belief[i, j, k] > max_prob:
+                        max_prob = self.belief[i, j, k]
+                        max_idx = [i, j, k]
+        return tuple(max_idx)
 
     def get_position_probability(self, row, col, orientation=None):
         """
@@ -275,18 +312,18 @@ class HistogramLocalization:
         most_likely_state = self.get_most_likely_position()
         max_prob = self.belief[most_likely_state]
 
-        print("\n=== Histogram Localization Summary ===")
-        print(
+        print(Fore.WHITE + "\n=== Histogram Localization Summary ===")
+        print(Fore.WHITE + 
             f"Most likely position: Row {most_likely_state[0]}, Col {most_likely_state[1]}"
         )
-        print(
+        print(Fore.WHITE + 
             f"Most likely orientation: {self.get_orientation_name(most_likely_state[2])}"
         )
-        print(f"Confidence: {max_prob * 100:.2f}%")
-        print(
+        print(Fore.WHITE + f"Confidence: {max_prob * 100:.2f}%")
+        print(Fore.WHITE + 
             f"Block type at most likely position: {self.game_map[most_likely_state[0], most_likely_state[1]]}"
         )
-        print("\nTop 3 most likely states (position + orientation):")
+        print(Fore.WHITE + "\nTop 3 most likely states (position + orientation):")
 
         # Get top 3 states
         flat_belief = self.belief.flatten()
@@ -296,7 +333,7 @@ class HistogramLocalization:
             state = np.unravel_index(idx, self.belief.shape)
             prob = self.belief[state]
             block_type = self.game_map[state[0], state[1]]
-            print(
+            print(Fore.WHITE + 
                 f"  Position ({state[0]}, {state[1]}), Orientation {self.get_orientation_name(state[2])}: "
                 f"{prob * 100:.2f}% (Block type: {block_type})"
             )
@@ -308,28 +345,28 @@ class HistogramLocalization:
 #     # Toggle omnidrive here. Set omnidrive=True to enable strafing instead of rotation.
 #     localizer = HistogramLocalization(gameMap, sensor_accuracy=0.8, omnidrive=False)
 
-#     print("Initial belief state (uniform distribution):")
+#     print(Fore.WHITE + "Initial belief state (uniform distribution):")
 #     localizer.print_belief_summary()
 
 #     # Simulate robot observations and movements
-#     print("\n\n--- Observation 1: Robot sees block type 2 ---")
+#     print(Fore.WHITE + "\n\n--- Observation 1: Robot sees block type 2 ---")
 #     localizer.update_belief(observed_block_type=2)
 #     localizer.print_belief_summary()
 
-#     print("\n\n--- Robot turns right ---")
+#     print(Fore.WHITE + "\n\n--- Robot turns right ---")
 #     localizer.predict_motion("right", move_accuracy=0.9)
 
-#     print("\n\n--- Robot moves forward ---")
+#     print(Fore.WHITE + "\n\n--- Robot moves forward ---")
 #     localizer.predict_motion("forward", move_accuracy=0.9)
 
-#     print("\n\n--- Observation 2: Robot sees block type 1 ---")
+#     print(Fore.WHITE + "\n\n--- Observation 2: Robot sees block type 1 ---")
 #     localizer.update_belief(observed_block_type=1)
 #     localizer.print_belief_summary()
 
-#     print("\n\n--- Robot moves forward ---")
+#     print(Fore.WHITE + "\n\n--- Robot moves forward ---")
 #     localizer.predict_motion("forward", move_accuracy=0.9)
 
-#     print("\n\n--- Observation 3: Robot sees block type 5 ---")
+#     print(Fore.WHITE + "\n\n--- Observation 3: Robot sees block type 5 ---")
 #     localizer.update_belief(observed_block_type=5)
 #     localizer.print_belief_summary()
 
@@ -342,10 +379,10 @@ class HistogramLocalization:
 #     omnidrive_mode = input("Enable omnidrive mode? (y/n): ").strip().lower() == "y"
 #     # Initialize the localization system
 #     localizer = HistogramLocalization(
-#         defaultGameMap, sensor_accuracy=0.8, omnidrive=omnidrive_mode
+#         sensor_accuracy=0.8, omnidrive=omnidrive_mode
 #     )
 
-#     print("Initial belief state (uniform distribution):")
+#     print(Fore.WHITE + "Initial belief state (uniform distribution):")
 #     localizer.print_belief_summary()
 #     localizer.visualize_belief()
 
@@ -359,7 +396,7 @@ class HistogramLocalization:
 #             if observed_block_type < 0 or observed_block_type > 5:
 #                 raise ValueError
 #         except ValueError:
-#             print("Invalid input. Please enter a block type between 0 and 5.")
+#             print(Fore.WHITE + "Invalid input. Please enter a block type between 0 and 5.")
 #             continue
 
 #         localizer.update_belief(observed_block_type)
@@ -372,7 +409,7 @@ class HistogramLocalization:
 #         if action.lower() == "q":
 #             break
 #         if action not in ["w", "a", "s", "d"]:
-#             print(
+#             print(Fore.WHITE + 
 #                 "Invalid action. Please enter 'forward', 'backward', 'left', or 'right'."
 #             )
 #             continue
