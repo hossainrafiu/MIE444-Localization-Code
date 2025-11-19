@@ -1,6 +1,8 @@
-from client_communication import *
 import matplotlib.pyplot as plt
+from colorama import Fore
+import serial
 
+from client_communication import ClientCommunication, PORT_SERIAL, BAUDRATE, TIMEOUT_SERIAL
 from histogram_localization import HistogramLocalization
 from robot_control import RobotDrive
 from pathfinding import PathfindingRobot
@@ -24,10 +26,10 @@ def block_type_detected(readings: list) -> int:
 SOURCE = "serial device " + PORT_SERIAL
 try:
     SER = serial.Serial(PORT_SERIAL, BAUDRATE, timeout=TIMEOUT_SERIAL)
-    print(f"Connected to {SOURCE} at {BAUDRATE} bps.")
+    print(Fore.GREEN + f"Connected to {SOURCE} at {BAUDRATE} bps.")
 except serial.SerialException:
     print(
-        f"Serial connection was refused.\nEnsure {PORT_SERIAL} is the correct port and nothing else is connected to it."
+        Fore.RED + f"Serial connection was refused.\nEnsure {PORT_SERIAL} is the correct port and nothing else is connected to it."
     )
     while True:
         pass
@@ -44,16 +46,16 @@ robot = RobotDrive(
 omnidrive_mode = True
 localizer = HistogramLocalization()
 
-def reset_histogram_localization():
-    localizer = HistogramLocalization()
-    robot.pingSensors()
+def reset_histogram_localization(_localizer=localizer, _robot=robot):
+    _localizer.reset_belief()
+    _robot.pingSensors()
     plt.subplot(1, 2, 2)
-    robot.plotSensorData(plt=plt)
-    _observed_block_type = block_type_detected(robot.ToFDistancesRaw)
-    print(f"Detected block type: {_observed_block_type}")
-    localizer.update_belief(_observed_block_type)
+    _robot.plotSensorData(plt=plt)
+    _observed_block_type = block_type_detected(_robot.ToFDistancesRaw)
+    print(Fore.MAGENTA + f"Detected block type: {_observed_block_type}")
+    _localizer.update_belief(_observed_block_type)
     plt.subplot(1, 2, 1)
-    localizer.visualize_belief(plt, False)
+    _localizer.visualize_belief(plt, False)
 
 load_pick_up_location = [1, 1]  # (row, col)
 with_load = False
@@ -67,7 +69,7 @@ pathfinder = PathfindingRobot(
 plt.figure(num=1, figsize=(12, 6), clear=True)
 plt.subplot(1, 2, 1)
 
-localizer.print_belief_summary()
+# localizer.print_belief_summary()
 localizer.visualize_belief(plt, False)
 
 RUN_STARTUP_CODE = True
@@ -84,7 +86,7 @@ if RUN_STARTUP_CODE:
     plt.subplot(1, 2, 2)
     robot.plotSensorData(plt=plt)
     observed_block_type = block_type_detected(robot.ToFDistancesRaw)
-    print(f"Detected block type: {observed_block_type}")
+    print(Fore.MAGENTA + f"Detected block type: {observed_block_type}")
     localizer.update_belief(observed_block_type)
     plt.subplot(1, 2, 1)
     localizer.visualize_belief(plt, False)
@@ -105,12 +107,12 @@ while True:
     else:
         action = ""
         
-    print(f"Action decided by pathfinder: {action}")
+    print(Fore.CYAN + f"Action decided by pathfinder: {action}")
     plt.pause(0.5)
 
     if action == "":
         print(
-            "Warning: Low confidence in current position estimate. Just move forward."
+            Fore.YELLOW + "Warning: Low confidence in current position estimate. Just move forward."
         )
         if robot.ToFDistances[0] > 150:
             robot.obstacleAvoidanceContinuous()
@@ -127,7 +129,7 @@ while True:
             robot.obstacleAvoidanceContinuous()
             updateHistogram = True
         else:
-            print("ERROR: Obstacle detected ahead, cannot move forward.")
+            print(Fore.RED + "ERROR: Obstacle detected ahead, cannot move forward.")
             reset_histogram_localization()
     if action == "right":
         if robot.currentFrontend != 1:
@@ -137,7 +139,7 @@ while True:
             robot.obstacleAvoidanceContinuous()
             updateHistogram = True
         else:
-            print("ERROR: Obstacle detected ahead, cannot move forward.")
+            print(Fore.RED + "ERROR: Obstacle detected ahead, cannot move forward.")
             reset_histogram_localization()
     if action == "backward":
         if robot.currentFrontend != 2:
@@ -147,7 +149,7 @@ while True:
             robot.obstacleAvoidanceContinuous()
             updateHistogram = True
         else:
-            print("ERROR: Obstacle detected ahead, cannot move forward.")
+            print(Fore.RED + "ERROR: Obstacle detected ahead, cannot move forward.")
             reset_histogram_localization()
     if action == "left":
         if robot.currentFrontend != 3:
@@ -157,7 +159,7 @@ while True:
             robot.obstacleAvoidanceContinuous()
             updateHistogram = True
         else:
-            print("ERROR: Obstacle detected ahead, cannot move forward.")
+            print(Fore.RED + "ERROR: Obstacle detected ahead, cannot move forward.")
             reset_histogram_localization()
     if action == "wait":
         robot.sendCommand("h")
@@ -180,14 +182,13 @@ while True:
 
         # Ping Sensors
         robot.pingSensors()
-        print(f"Sensor Ping Responses: {robot.ToFDistancesRaw}")
         plt.subplot(1, 2, 2)
         plt.cla()
         robot.plotSensorData(plt=plt)
 
         # Detect Block Type
         block_type = block_type_detected(robot.ToFDistances)
-        print(f"Block Type Detected = {block_type}")
+        print(Fore.MAGENTA + f"Block Type Detected = {block_type}")
 
         # Update Histogram Localization
         localizer.update_belief(block_type)

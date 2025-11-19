@@ -1,4 +1,5 @@
 import time
+from colorama import Fore
 
 RECURSIVE_ALLIGN = False
 
@@ -43,11 +44,11 @@ class RobotDrive:
             if responses[0] != "+" and responses[0] is not False:
                 break
         if self.verboseConsole:
-            print(f"Sensor Responses at {time_rx}: {responses}")
+            print(Fore.BLUE + f"Sensor Responses at {time_rx}: {responses}")
             # Check validity of responses
             if len(responses) != (5 if raw_cmd == "p" else 9):
                 if self.verboseConsole:
-                    print("Invalid sensor response length, trying again.")
+                    print(Fore.RED + "Invalid sensor response length, trying again.")
                     if try_again:
                         self.pingSensors(raw_cmd, try_again=False)
                 return
@@ -80,20 +81,20 @@ class RobotDrive:
             if responses[0] == "+":
                 break
         if self.verboseConsole:
-            print(f"Command Response at {time_rx}: {responses}")
+            print(Fore.GREEN + f"Command Response at {time_rx}: {responses}")
         return responses
 
     def changeFrontEnd(self, new_frontend, center_after_change=False):
         # If new_frontend is the same as current, do nothing
         if new_frontend == self.currentFrontend:
             if self.verboseConsole:
-                print("New frontend is the same as current, no change needed.")
+                print(Fore.YELLOW + "New frontend is the same as current, no change needed.")
             return
         # If new_frontend is opposite to current, no centering checks needed
         if (new_frontend - self.currentFrontend) % 4 == 2:
             if self.verboseConsole:
                 print(
-                    "New frontend is opposite to current, no centering checks needed."
+                    Fore.YELLOW + "New frontend is opposite to current, no centering checks needed."
                 )
             self.sendCommand("r" + str(new_frontend))
             if center_after_change:
@@ -101,11 +102,11 @@ class RobotDrive:
             return
         # For adjacent frontends, perform centering checks
         if self.verboseConsole:
-            print("Changing frontend with centering checks.")
+            print(Fore.YELLOW + "Changing frontend with centering checks.")
         centered, _ = self.centreinblock()
         if centered:
             if self.verboseConsole:
-                print("Robot is well centered, changing frontend directly.")
+                print(Fore.YELLOW + "Robot is well centered, changing frontend directly.")
             self.sendCommand("r" + str(new_frontend))
             if center_after_change:
                 self.performBlockCentering()
@@ -113,7 +114,7 @@ class RobotDrive:
         else:
             if self.verboseConsole:
                 print(
-                    "Robot is offcentered, adjusting position before changing frontend."
+                    Fore.YELLOW + "Robot is offcentered, adjusting position before changing frontend."
                 )
             self.performBlockCentering()
             self.sendCommand("r" + str(new_frontend))
@@ -124,7 +125,7 @@ class RobotDrive:
     def avoidFrontWall(self):
         # Obstacle detected in front, stop and back up
         if self.verboseConsole:
-            print("Obstacle detected in front, backing up and rotating.")
+            print(Fore.MAGENTA + "Obstacle detected in front, backing up and rotating.")
         self.sendCommand("s100")
         if self.OMNIWHEELDRIVE and self.autoChangeFrontEnd:
             if self.ToFDistances[1] < 150:
@@ -133,17 +134,6 @@ class RobotDrive:
             else:
                 new_front = (self.currentFrontend + 1) % 4
                 self.sendCommand(f"r{new_front}")
-        else:
-            if self.ToFDistances[1] < 150:
-                # Obstacle on the right, rotate ACW
-                if self.verboseConsole:
-                    print("Obstacle detected on the right, rotating counter-clockwise.")
-                self.sendCommand("q900")
-            else:
-                # No obstacle on the right, rotate CW
-                if self.verboseConsole:
-                    print("No obstacle on the right, rotating clockwise.")
-                self.sendCommand("e900")
 
     def avoidSideWalls(self):
         # Against the wall is 30 mm
@@ -151,7 +141,7 @@ class RobotDrive:
             # Avoiding right wall collisions
             if self.verboseConsole:
                 print(
-                    f"Obstacle too close on the right sensor: {self.ToFDistances[1]}mm, veering left."
+                    Fore.MAGENTA + f"Obstacle too close on the right sensor: {self.ToFDistances[1]}mm, veering left."
                 )
             movement_duration = (
                 75 - self.ToFDistances[1]
@@ -167,7 +157,7 @@ class RobotDrive:
             # Avoiding left wall collisions
             if self.verboseConsole:
                 print(
-                    f"Obstacle too close on the left sensor: {self.ToFDistances[3]}mm, veering right."
+                    Fore.MAGENTA + f"Obstacle too close on the left sensor: {self.ToFDistances[3]}mm, veering right."
                 )
             movement_duration = (
                 75 - self.ToFDistances[3]
@@ -188,7 +178,7 @@ class RobotDrive:
         ):
             if self.verboseConsole:
                 print(
-                    f"Too far from left sensor: {self.ToFDistances[3]}mm, veering left."
+                    Fore.MAGENTA + f"Too far from left sensor: {self.ToFDistances[3]}mm, veering left."
                 )
             movement_duration = max(
                 (self.ToFDistances[3] - 75) * 5, 100
@@ -207,7 +197,7 @@ class RobotDrive:
         ):
             if self.verboseConsole:
                 print(
-                    f"Too far from right sensor: {self.ToFDistances[1]}mm, veering right."
+                    Fore.MAGENTA + f"Too far from right sensor: {self.ToFDistances[1]}mm, veering right."
                 )
             movement_duration = max(
                 (self.ToFDistances[1] - 75) * 5, 100
@@ -221,7 +211,7 @@ class RobotDrive:
 
     def obstacleAvoidance(self, ping=True, duration=500):
         if self.verboseConsole:
-            print("Starting obstacle avoidance routine...")
+            print(Fore.CYAN + "Starting obstacle avoidance routine...")
         if ping:
             self.pingSensors()
 
@@ -232,14 +222,14 @@ class RobotDrive:
             self.hugSideWalls()
 
         if self.verboseConsole:
-            print("Path clear, moving forward.")
+            print(Fore.CYAN + "Path clear, moving forward.")
         self.sendCommand(f"f{duration}")
 
     def obstacleAvoidanceContinuous(self, ping=True, duration=200):
         self.hasPassedCenter = False
         while not (self.hasPassedCenter and self.pauseInCenter):
             if self.verboseConsole:
-                print("Starting obstacle avoidance routine...")
+                print(Fore.CYAN + "Starting obstacle avoidance routine...")
 
             if ping:
                 self.pingSensors()
@@ -251,7 +241,7 @@ class RobotDrive:
                 self.hugSideWalls()
 
             if self.verboseConsole:
-                print("Path clear, moving forward.")
+                print(Fore.CYAN + "Path clear, moving forward.")
             self.sendCommand(f"f{duration}")
             # time.sleep(0.1)
             # self.checkCentering()
@@ -352,7 +342,7 @@ class RobotDrive:
             lastMeasure2 = lastMeasure1
             lastMeasure1 = self.ToFDistances[1]
             if self.verboseConsole:
-                print(f"M1: {lastMeasure1} M2: {lastMeasure2} M3: {lastMeasure3}")
+                print(Fore.GREEN + f"M1: {lastMeasure1} M2: {lastMeasure2} M3: {lastMeasure3}")
             if self.ToFDistances[0] > 300 and self.ToFDistances[1] < 150:
                 if lastMeasure1 > lastMeasure2 and lastMeasure3 > lastMeasure2:
                     self.sendCommand("q200")  # rotate CCW
@@ -417,7 +407,7 @@ class RobotDrive:
             if not centered:
                 if offcenter > 0:
                     if self.verboseConsole:
-                        print(
+                        print(Fore.MAGENTA +
                             f"Robot is before the center of the block, moving forward by {offcenter}mm."
                         )
                     duration = min(offcenter * 8, 1000)
@@ -425,7 +415,7 @@ class RobotDrive:
                     time.sleep(duration / 1000 + 0.5)
                 else:
                     if self.verboseConsole:
-                        print(
+                        print(Fore.MAGENTA +
                             f"Robot is beyond the center of the block, moving backward by {abs(offcenter)}mm."
                         )
                     duration = min(abs(offcenter) * 8, 1000)
@@ -452,13 +442,13 @@ class RobotDrive:
             self.ToFDistances[0] < self.ToFDistances[2]
         ):  # Sets mult based on larger front or back length (1 forward, -1 backwards)
             mult = -1
-        print("Robot distance wall:" + str(minDis))
+        print(Fore.GREEN + "Robot distance wall:" + str(minDis))
         minDis = (
             minDis % blocklength
         )  # distance from biginning of current block to robot center
-        print("Robot distance to start of block:" + str(minDis))
+        print(Fore.GREEN + "Robot distance to start of block:" + str(minDis))
         middleDis = 2 * middle - minDis  # distance from robot center to block center
-        print("Distance to center of block:" + str(middleDis * mult))
+        print(Fore.GREEN + "Distance to center of block:" + str(middleDis * mult))
         middleDis *= mult
 
         if middleDis < 25 and self.previousOffset > 25:
@@ -468,14 +458,14 @@ class RobotDrive:
         if (
             -tolerance < middleDis < tolerance
         ):  # if block center distance is whithin tolerance, robot is in center
-            print("Robot is centered in block!!!")
+            print(Fore.GREEN + "Robot is centered in block!!!")
             return [True, middleDis]
         else:
             self.pauseInCenter = True
             return [False, middleDis]
 
     def pingLoadSensors(self, try_again=True):
-        CALIBRATION_OFFSET = 200
+        # CALIBRATION_OFFSET = 200
         raw_cmd = "v"
         packet_tx = self.packetize(raw_cmd)
         if packet_tx:
@@ -548,12 +538,11 @@ class RobotDrive:
         
         self.sendCommand("x")
         self.sendCommand("x")
-        
 
     def dropLoad(self):
         # GRIPPER PROCEDURE
         servo0, servo0_up, servo0_down = 0, 120, 10
-        servo1, servo1_open, servo1_close = 1, 0, 110
+        servo1, servo1_open = 1, 0
 
         self.sendCommand(f"l{servo0}{servo0_down}")
         time.sleep(0.5)

@@ -1,6 +1,7 @@
 from client_communication import ClientCommunication, PORT_SERIAL, BAUDRATE, TIMEOUT_SERIAL
 import serial
 import matplotlib.pyplot as plt
+from colorama import Fore
 
 from histogram_localization import HistogramLocalization
 from robot_control import RobotDrive
@@ -115,12 +116,12 @@ localizer.visualize_belief(plt, False)
 
 while True:
     print(
-        "Commands: 'w' = obstacle avoidance, 'wasd' = omni motion, 'yghj' = normal motion, 'q' = rotate CCW, 'e' = rotate CW,"
+        Fore.YELLOW + "Commands: 'w' = obstacle avoidance, 'wasd' = omni motion, 'yghj' = normal motion, 'q' = rotate CCW, 'e' = rotate CW,"
     )
     print(
         "'l' = load/unload, 'p' = ping sensors, 'u' = update localization, 'us' = ultrasonic sensors, 'c' = centering"
     )
-    val = input("Enter command: ")
+    val = input(Fore.CYAN + "Enter command: ")
     duration = 200
     if val.lower() == "l":
         robot.detectLoad()
@@ -142,7 +143,8 @@ while True:
         robot.plotSensorData(plt=plt)
 
     elif val.lower() == "c":
-        robot.sendCommand("c")
+        robot.centering()
+        # robot.sendCommand("c")
         # robot.centreinblock()
         # robot.checkCentering()
     elif val.lower() == "o":
@@ -166,6 +168,7 @@ while True:
         robot.sendCommand(f"e{duration}")
     elif val.lower() == "=":
         SER.close()
+        print(Fore.WHITE + "Serial connection closed.")
         break
 
     elif val.lower() == "w":
