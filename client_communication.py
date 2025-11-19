@@ -10,24 +10,15 @@ class ClientCommunication:
 
     # Wrapper functions
     def transmit(self, data):
-        """Selects whether to use serial or tcp for transmitting."""
+        """Transmit a command over a serial connection."""
         print(
             Fore.WHITE
             + f"Transmitting {data} at: {datetime.now().strftime('%H:%M:%S:%f')}"
         )
-        self.transmit_serial(data)
-
-    def receive(self):
-        """Selects whether to use serial or tcp for receiving."""
-        return self.receive_serial()
-
-    # Serial communication functions
-    def transmit_serial(self, data):
-        """Transmit a command over a serial connection."""
         self.clear_serial()
         self.SER.write(data.encode("ascii"))
 
-    def receive_serial(self):
+    def receive(self):
         """Receive a reply over a serial connection."""
         self.SER.timeout = 0.1  # Short timeout to start reading
         start_time = time.time()
@@ -88,13 +79,10 @@ class ClientCommunication:
         """
 
         # Check to make sure that a packet doesn't include any forbidden characters (0x01, 0x02, 0x03, 0x04)
-        forbidden = [FRAMESTART, FRAMEEND, "\n"]
-        check_fail = any(char in data for char in forbidden)
-
-        if not check_fail:
+        if not any(char in data for char in [FRAMESTART, FRAMEEND, "\n"]):
             return FRAMESTART + data + FRAMEEND + "\n"
-
-        return False
+        else:
+            return False
 
 
 ############## Constant Definitions Begin ##############

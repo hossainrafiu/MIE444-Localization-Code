@@ -1,4 +1,9 @@
-from client_communication import ClientCommunication, PORT_SERIAL, BAUDRATE, TIMEOUT_SERIAL
+from client_communication import (
+    ClientCommunication,
+    PORT_SERIAL,
+    BAUDRATE,
+    TIMEOUT_SERIAL,
+)
 import serial
 import matplotlib.pyplot as plt
 from colorama import Fore
@@ -8,60 +13,17 @@ from robot_control import RobotDrive
 from pathfinding import PathfindingRobot
 
 
-def block_type_detected(sensor_readings: list) -> int:
-    """
-    Given a list of four distance sensor readings, determine the block type that is most likely
-    being observed.
-    """
-
-    # Define thresholds for wall detection
-    WALL_THRESHOLD = 180  # Distance in mm to consider a wall detected
-
-    # Determine which walls are detected
-    walls = [reading < WALL_THRESHOLD for reading in sensor_readings]
-
-    # Map wall configurations to block types
-    wall_config_to_block_type = {
-        (False, False, False, False): 0,  # No walls
-        (True, False, False, False): 1,  # 1 Wall
-        (True, True, False, False): 2,  # 2 Adjacent Walls
-        (True, True, True, False): 3,  # 3 Walls
-        (True, True, True, True): 4,  # 4 Walls (Enclosed)
-        (True, False, True, False): 5,  # 5 Opposite Walls
-    }
-
-    # check the detected walls against the mapping with rotations
-    for rotation in range(4):
-        rotated_walls = tuple(walls[(i - rotation) % 4] for i in range(4))
-        if rotated_walls in wall_config_to_block_type:
-            return wall_config_to_block_type[rotated_walls]
-
-    return -1  # Unknown block type
-
-
-def block_type_detected_V2(readings: list) -> int:
-    WALL_THRESHOLD = 100
-    walls = [0, 0, 0, 0]
-    count = 0
-    if readings[0] < WALL_THRESHOLD:
-        walls[0] = 1
-    if readings[1] < WALL_THRESHOLD:
-        walls[1] = 1
-    if readings[2] < WALL_THRESHOLD:
-        walls[2] = 1
-    if readings[3] < WALL_THRESHOLD:
-        walls[3] = 1
-    for i in range(4):
-        count += walls[i]
-
-    if count == 2:
+def block_type_detected(readings: list) -> int:
+    WALL_THRESHOLD = 180
+    walls = [1 if reading < WALL_THRESHOLD else 0 for reading in readings]
+    if sum(walls) == 2:
         for i in range(4):
             if walls[i] == 1:
                 if walls[i - 1] == 1:
                     return 2
         return 5
     else:
-        return count
+        return sum(walls)
 
 
 def robotMoveForward():
@@ -94,15 +56,13 @@ robot = RobotDrive(
     clientCommunication.receive,
 )
 
-omnidrive_mode = True
 localizer = HistogramLocalization()
 
 load_pick_up_location = [1, 1]  # (row, col)
-with_load = False
 unload_drop_off_location = [3, 7]  # (row, col)
 
 pathfinder = PathfindingRobot(
-    load_pick_up_location, unload_drop_off_location, omnidrive=omnidrive_mode
+    load_pick_up_location, unload_drop_off_location, omnidrive=True
 )
 
 
@@ -116,25 +76,24 @@ localizer.visualize_belief(plt, False)
 
 while True:
     print(
-        Fore.YELLOW + "Commands: 'w' = obstacle avoidance, 'wasd' = omni motion, 'yghj' = normal motion, 'q' = rotate CCW, 'e' = rotate CW,"
+        Fore.YELLOW
+        + "Commands: 'f' = obstacle avoidance, 'f1' = avoid side walls, 'f2' = hug side walls"
     )
     print(
         "'l' = load/unload, 'p' = ping sensors, 'u' = update localization, 'us' = ultrasonic sensors, 'c' = centering"
     )
     val = input(Fore.CYAN + "Enter command: ")
-    duration = 200
     if val.lower() == "l":
         robot.detectLoad()
     if val.lower() == "ul":
         robot.dropLoad()
-        
+
     elif val.lower() == "f":
         robot.obstacleAvoidanceContinuous(200)
     elif val.lower() == "f1":
         robot.avoidSideWalls()
     elif val.lower() == "f2":
         robot.hugSideWalls()
-    
 
     elif val.lower() == "p":
         robot.pingSensors()
@@ -144,28 +103,10 @@ while True:
 
     elif val.lower() == "c":
         robot.centering()
-        # robot.sendCommand("c")
-        # robot.centreinblock()
-        # robot.checkCentering()
-    elif val.lower() == "o":
-        robot.sendCommand("o")
-    elif val.lower() == "z":
-        robot.sendCommand("z")
-    elif val.lower() == "x":
-        robot.sendCommand("x")
-
-    elif val.lower() == "y":
-        robot.sendCommand(f"f{duration}")
-    elif val.lower() == "g":
-        robot.sendCommand(f"a{duration}")
-    elif val.lower() == "h":
-        robot.sendCommand(f"s{duration}")
-    elif val.lower() == "j":
-        robot.sendCommand(f"d{duration}")
-    elif val.lower() == "q":
-        robot.sendCommand(f"q{duration}")
-    elif val.lower() == "e":
-        robot.sendCommand(f"e{duration}")
+    elif val.lower() == "c1":
+        robot.centreinblock()
+    elif val.lower() == "c2":
+        robot.checkCentering()
     elif val.lower() == "=":
         SER.close()
         print(Fore.WHITE + "Serial connection closed.")
@@ -189,14 +130,7 @@ while True:
         robotMoveForward()
     elif val.lower() == "u":
         # Movement Update
-        movement = robot.currentFrontend
-        movement_map = {
-            0: "forward",
-            1: "right",
-            2: "backward",
-            3: "left",
-        }
-        localizer.predict_motion(movement_map[movement])
+        localizer.predict_motion(robot.currentFrontend)
         plt.subplot(1, 2, 1)
         plt.cla()
         localizer.visualize_belief(plt, False)
@@ -209,3 +143,7 @@ while True:
         plt.cla()
         localizer.visualize_belief(plt, False)
         robot.pauseInCenter = False
+
+    else:
+        print(Fore.MAGENTA + "Sending Command to Robot: " + val)
+        robot.sendCommand(val)

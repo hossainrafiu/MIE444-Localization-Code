@@ -12,7 +12,6 @@ from colorama import Fore
 # 5 - Two Opposite Walls
 
 
-
 class HistogramLocalization:
     def __init__(self, game_map=None, sensor_accuracy=0.8, omnidrive=True):
         """
@@ -62,7 +61,7 @@ class HistogramLocalization:
 
         # Normalize the initial belief
         self.normalize_belief()
-    
+
     def belief_in_loading_zone(self):
         # Loading Zone from (0,0) to (1,1)
         self.belief = np.ones((self.rows, self.cols, self.num_orientations))
@@ -137,6 +136,10 @@ class HistogramLocalization:
         # Lateral (left) motions relative to orientation (perpendicular to forward, CCW)
         lateral_left = [(0, -1), (-1, 0), (0, 1), (1, 0)]  # From facing N,E,S,W
         lateral_right = [(0, 1), (1, 0), (0, -1), (-1, 0)]
+
+        if action in range(4):
+            action_map = {0: "forward", 1: "backward", 2: "left", 3: "right"}
+            action = action_map[action]
 
         if action == "forward":
             for i in range(self.rows):
@@ -313,15 +316,18 @@ class HistogramLocalization:
         max_prob = self.belief[most_likely_state]
 
         print(Fore.WHITE + "\n=== Histogram Localization Summary ===")
-        print(Fore.WHITE + 
-            f"Most likely position: Row {most_likely_state[0]}, Col {most_likely_state[1]}"
+        print(
+            Fore.WHITE
+            + f"Most likely position: Row {most_likely_state[0]}, Col {most_likely_state[1]}"
         )
-        print(Fore.WHITE + 
-            f"Most likely orientation: {self.get_orientation_name(most_likely_state[2])}"
+        print(
+            Fore.WHITE
+            + f"Most likely orientation: {self.get_orientation_name(most_likely_state[2])}"
         )
         print(Fore.WHITE + f"Confidence: {max_prob * 100:.2f}%")
-        print(Fore.WHITE + 
-            f"Block type at most likely position: {self.game_map[most_likely_state[0], most_likely_state[1]]}"
+        print(
+            Fore.WHITE
+            + f"Block type at most likely position: {self.game_map[most_likely_state[0], most_likely_state[1]]}"
         )
         print(Fore.WHITE + "\nTop 3 most likely states (position + orientation):")
 
@@ -333,8 +339,9 @@ class HistogramLocalization:
             state = np.unravel_index(idx, self.belief.shape)
             prob = self.belief[state]
             block_type = self.game_map[state[0], state[1]]
-            print(Fore.WHITE + 
-                f"  Position ({state[0]}, {state[1]}), Orientation {self.get_orientation_name(state[2])}: "
+            print(
+                Fore.WHITE
+                + f"  Position ({state[0]}, {state[1]}), Orientation {self.get_orientation_name(state[2])}: "
                 f"{prob * 100:.2f}% (Block type: {block_type})"
             )
 
@@ -409,7 +416,7 @@ class HistogramLocalization:
 #         if action.lower() == "q":
 #             break
 #         if action not in ["w", "a", "s", "d"]:
-#             print(Fore.WHITE + 
+#             print(Fore.WHITE +
 #                 "Invalid action. Please enter 'forward', 'backward', 'left', or 'right'."
 #             )
 #             continue
