@@ -105,8 +105,6 @@ while True:
         robot.centering()
     elif val.lower() == "c1":
         robot.centreinblock()
-    elif val.lower() == "c2":
-        robot.checkCentering()
     elif val.lower() == "=":
         SER.close()
         print(Fore.WHITE + "Serial connection closed.")
