@@ -88,13 +88,17 @@ class RobotDrive:
         # If new_frontend is the same as current, do nothing
         if new_frontend == self.currentFrontend:
             if self.verboseConsole:
-                print(Fore.YELLOW + "New frontend is the same as current, no change needed.")
+                print(
+                    Fore.YELLOW
+                    + "New frontend is the same as current, no change needed."
+                )
             return
         # If new_frontend is opposite to current, no centering checks needed
         if (new_frontend - self.currentFrontend) % 4 == 2:
             if self.verboseConsole:
                 print(
-                    Fore.YELLOW + "New frontend is opposite to current, no centering checks needed."
+                    Fore.YELLOW
+                    + "New frontend is opposite to current, no centering checks needed."
                 )
             self.sendCommand("r" + str(new_frontend))
             if center_after_change:
@@ -106,7 +110,9 @@ class RobotDrive:
         centered, _ = self.centreinblock()
         if centered:
             if self.verboseConsole:
-                print(Fore.YELLOW + "Robot is well centered, changing frontend directly.")
+                print(
+                    Fore.YELLOW + "Robot is well centered, changing frontend directly."
+                )
             self.sendCommand("r" + str(new_frontend))
             if center_after_change:
                 self.performBlockCentering()
@@ -114,7 +120,8 @@ class RobotDrive:
         else:
             if self.verboseConsole:
                 print(
-                    Fore.YELLOW + "Robot is offcentered, adjusting position before changing frontend."
+                    Fore.YELLOW
+                    + "Robot is offcentered, adjusting position before changing frontend."
                 )
             self.performBlockCentering()
             self.sendCommand("r" + str(new_frontend))
@@ -141,7 +148,8 @@ class RobotDrive:
             # Avoiding right wall collisions
             if self.verboseConsole:
                 print(
-                    Fore.MAGENTA + f"Obstacle too close on the right sensor: {self.ToFDistances[1]}mm, veering left."
+                    Fore.MAGENTA
+                    + f"Obstacle too close on the right sensor: {self.ToFDistances[1]}mm, veering left."
                 )
             movement_duration = (
                 75 - self.ToFDistances[1]
@@ -157,7 +165,8 @@ class RobotDrive:
             # Avoiding left wall collisions
             if self.verboseConsole:
                 print(
-                    Fore.MAGENTA + f"Obstacle too close on the left sensor: {self.ToFDistances[3]}mm, veering right."
+                    Fore.MAGENTA
+                    + f"Obstacle too close on the left sensor: {self.ToFDistances[3]}mm, veering right."
                 )
             movement_duration = (
                 75 - self.ToFDistances[3]
@@ -178,7 +187,8 @@ class RobotDrive:
         ):
             if self.verboseConsole:
                 print(
-                    Fore.MAGENTA + f"Too far from left sensor: {self.ToFDistances[3]}mm, veering left."
+                    Fore.MAGENTA
+                    + f"Too far from left sensor: {self.ToFDistances[3]}mm, veering left."
                 )
             movement_duration = max(
                 (self.ToFDistances[3] - 75) * 5, 100
@@ -197,7 +207,8 @@ class RobotDrive:
         ):
             if self.verboseConsole:
                 print(
-                    Fore.MAGENTA + f"Too far from right sensor: {self.ToFDistances[1]}mm, veering right."
+                    Fore.MAGENTA
+                    + f"Too far from right sensor: {self.ToFDistances[1]}mm, veering right."
                 )
             movement_duration = max(
                 (self.ToFDistances[1] - 75) * 5, 100
@@ -342,7 +353,10 @@ class RobotDrive:
             lastMeasure2 = lastMeasure1
             lastMeasure1 = self.ToFDistances[1]
             if self.verboseConsole:
-                print(Fore.GREEN + f"M1: {lastMeasure1} M2: {lastMeasure2} M3: {lastMeasure3}")
+                print(
+                    Fore.GREEN
+                    + f"M1: {lastMeasure1} M2: {lastMeasure2} M3: {lastMeasure3}"
+                )
             if self.ToFDistances[0] > 300 and self.ToFDistances[1] < 150:
                 if lastMeasure1 > lastMeasure2 and lastMeasure3 > lastMeasure2:
                     self.sendCommand("q200")  # rotate CCW
@@ -361,44 +375,75 @@ class RobotDrive:
             and self.ToFDistances[3] > 150
         ):
             if self.verboseConsole:
-                print(Fore.GREEN + "No walls detected within 150mm, skipping parallelization.")
+                print(
+                    Fore.GREEN
+                    + "No walls detected within 150mm, skipping parallelization."
+                )
             return
+
         # find sensor with the closest wall
         min_distance = min(self.ToFDistances)
         min_index = self.ToFDistances.index(min_distance)
 
-        # align with that wall, do small rotations in both directions to find the best alignment
-        min_distance_plus_CW = 8000
-        min_distance_plus_CCW = 8000
+        # Start rotating CW, if distance starts decreases, continue rotating CW
+        # until distance starts increasing, then do a small CCW rotation and stop.
+        # Otherwise if distance starts increases, stop, and start rotating CCW
+        # until distance starts increasing, then do a small CW rotation and stop.
         self.sendCommand("e100")  # small CW rotation
         time.sleep(0.3)
         self.pingSensors()
-        min_distance_plus_CW = self.ToFDistances[min_index]
-        self.sendCommand("q200")  # small CCW rotation (back to original + CCW)
-        time.sleep(0.3)
-        self.pingSensors()
-        min_distance_plus_CCW = self.ToFDistances[min_index]
-        # decide which direction was better compared to original distance
-        if (
-            min_distance_plus_CW < min_distance
-            and min_distance_plus_CW < min_distance_plus_CCW
-        ):
+        distance_plus_CW = self.ToFDistances[min_index]
+        if distance_plus_CW < min_distance:
+            # continue rotating CW
             if self.verboseConsole:
-                print(Fore.GREEN + "Adjusting alignment: rotating CW.")
-            self.sendCommand("e200")  # rotate CW
-            time.sleep(0.3)
-        elif (
-            min_distance_plus_CCW < min_distance
-            and min_distance_plus_CCW < min_distance_plus_CW
-        ):
-            if self.verboseConsole:
-                print(Fore.GREEN + "Adjusting alignment: rotating CCW.")
-            self.sendCommand("q100")  # rotate CCW
-            time.sleep(0.3)
+                print(Fore.GREEN + "Continuing CW rotation for parallelization.")
+            while True:
+                self.sendCommand("e100")  # continue CW rotation
+                time.sleep(0.3)
+                self.pingSensors()
+                new_distance = self.ToFDistances[min_index]
+                if new_distance >= distance_plus_CW:
+                    # distance started increasing, do small CCW rotation and stop
+                    if self.verboseConsole:
+                        print(
+                            Fore.GREEN
+                            + "Distance increased, adjusting with small CCW rotation."
+                        )
+                    self.sendCommand("q100")  # small CCW rotation
+                    time.sleep(0.3)
+                    break
+                distance_plus_CW = new_distance
         else:
+            min_distance = (
+                distance_plus_CW  # to avoid early stopping in reverse rotation
+            )
+            # start rotating CCW
             if self.verboseConsole:
-                print(Fore.GREEN + "Originally well aligned, no adjustment needed.")
-            self.sendCommand("e100")  # rotate back to original position
+                print(Fore.GREEN + "Starting CCW rotation for parallelization.")
+            self.sendCommand("q100")  # small CCW rotation (back to original + CCW)
+            time.sleep(0.3)
+            self.pingSensors()
+            distance_plus_CCW = self.ToFDistances[min_index]
+            while True:
+                if distance_plus_CCW < min_distance:
+                    # continue rotating CCW
+                    self.sendCommand("q100")  # continue CCW rotation
+                    time.sleep(0.3)
+                    self.pingSensors()
+                    new_distance = self.ToFDistances[min_index]
+                    if new_distance >= distance_plus_CCW:
+                        # distance started increasing, do small CW rotation and stop
+                        if self.verboseConsole:
+                            print(
+                                Fore.GREEN
+                                + "Distance increased, adjusting with small CW rotation."
+                            )
+                        self.sendCommand("e100")  # small CW rotation
+                        time.sleep(0.3)
+                        break
+                    distance_plus_CCW = new_distance
+                else:
+                    break
 
     def performBlockCentering(self):
         centered = False
@@ -407,16 +452,18 @@ class RobotDrive:
             if not centered:
                 if offcenter > 0:
                     if self.verboseConsole:
-                        print(Fore.MAGENTA +
-                            f"Robot is before the center of the block, moving forward by {offcenter}mm."
+                        print(
+                            Fore.MAGENTA
+                            + f"Robot is before the center of the block, moving forward by {offcenter}mm."
                         )
                     duration = min(offcenter * 8, 1000)
                     self.sendCommand(f"f{duration}")
                     time.sleep(duration / 1000 + 0.5)
                 else:
                     if self.verboseConsole:
-                        print(Fore.MAGENTA +
-                            f"Robot is beyond the center of the block, moving backward by {abs(offcenter)}mm."
+                        print(
+                            Fore.MAGENTA
+                            + f"Robot is beyond the center of the block, moving backward by {abs(offcenter)}mm."
                         )
                     duration = min(abs(offcenter) * 8, 1000)
                     self.sendCommand(f"s{duration}")
@@ -494,15 +541,24 @@ class RobotDrive:
         self.sendCommand("z")
         self.sendCommand("z")
         self.sendCommand("r0")
-        TOLERANCE = 70      # mm
+        TOLERANCE = 70  # mm
         TURN_DURATION = 50  # ms
         self.pingLoadSensors()
         lockedOnLoad = False
-        while abs(self.LoadToFDistances[0] - self.LoadToFDistances[1]) < TOLERANCE and self.LoadToFDistances[1] > 130:
-            if abs(self.LoadToFDistances[0] - self.LoadToFDistances[1]) > TOLERANCE and not lockedOnLoad:
+        while (
+            abs(self.LoadToFDistances[0] - self.LoadToFDistances[1]) < TOLERANCE
+            and self.LoadToFDistances[1] > 130
+        ):
+            if (
+                abs(self.LoadToFDistances[0] - self.LoadToFDistances[1]) > TOLERANCE
+                and not lockedOnLoad
+            ):
                 # Found load, trigger lock on
                 lockedOnLoad = True
-            elif abs(self.LoadToFDistances[0] - self.LoadToFDistances[1]) < TOLERANCE and lockedOnLoad:
+            elif (
+                abs(self.LoadToFDistances[0] - self.LoadToFDistances[1]) < TOLERANCE
+                and lockedOnLoad
+            ):
                 # Lost Load, hard turn CW and sweep CCW
                 lockedOnLoad = False
                 self.sendCommand("e200")
@@ -521,7 +577,7 @@ class RobotDrive:
                 # EXPERIMENTAL CHECKING FOR CHANGE DIFF
                 # topDiff = self.lastLoadToFDistances[0] - self.LoadToFDistances[0]
                 # bottomDiff = self.lastLoadToFDistances[1] - self.LoadToFDistances[1]
-                # print(Fore.MAGENTA + 
+                # print(Fore.MAGENTA +
                 #     f"Top: {self.LoadToFDistances[0]}  Bottom: {self.LoadToFDistances[1]}"
                 # )
                 # print(Fore.MAGENTA + f"Top Diff: {topDiff}  Bottom Diff: {bottomDiff}")
@@ -534,20 +590,20 @@ class RobotDrive:
         time.sleep(0.5)
         self.sendCommand(f"l{servo0}{servo0_down}")
         time.sleep(0.5)
-        
+
         # Inch forward to block and align block
         for _ in range(10):
             self.sendCommand("f50")
             time.sleep(0.1)
             self.sendCommand("d50")
             time.sleep(0.1)
-        
+
         # Gripper close and up
         self.sendCommand(f"l{servo1}{servo1_close}")
         time.sleep(0.5)
         self.sendCommand(f"l{servo0}{servo0_up}")
         time.sleep(0.5)
-        
+
         self.sendCommand("x")
         self.sendCommand("x")
 
