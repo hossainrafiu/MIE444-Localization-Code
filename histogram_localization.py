@@ -138,7 +138,7 @@ class HistogramLocalization:
         lateral_right = [(0, 1), (1, 0), (0, -1), (-1, 0)]
 
         if action in range(4):
-            action_map = {0: "forward", 1: "backward", 2: "left", 3: "right"}
+            action_map = {0: "forward", 1: "right", 2: "backward", 3: "left"}
             action = action_map[action]
 
         if action == "forward":

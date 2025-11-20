@@ -29,7 +29,7 @@ except serial.SerialException:
 
 ############## Main section for the communication client ##############
 
-clientCommunication = ClientCommunication(SER)
+clientCommunication = ClientCommunication(SER, False)
 robot = RobotDrive(
     clientCommunication.packetize,
     clientCommunication.transmit,
@@ -174,5 +174,7 @@ while True:
         plt.subplot(1, 2, 1)
         plt.cla()
         localizer.visualize_belief(plt, False)
+        
+        plt.pause(0.5)
 
         updateHistogram = False

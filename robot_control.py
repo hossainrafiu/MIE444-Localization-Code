@@ -46,7 +46,7 @@ class RobotDrive:
         if self.verboseConsole:
             print(Fore.BLUE + f"Sensor Responses at {time_rx}: {responses}")
             # Check validity of responses
-            if len(responses) != (5 if raw_cmd == "p" else 9):
+            if len(responses) != (5 if raw_cmd.find("p") != -1 else 9):
                 if self.verboseConsole:
                     print(Fore.RED + "Invalid sensor response length, trying again.")
                     if try_again:
@@ -243,7 +243,7 @@ class RobotDrive:
                 print(Fore.CYAN + "Starting obstacle avoidance routine...")
 
             if ping:
-                self.pingSensors()
+                self.pingSensors("p1")
 
             if self.ToFDistances[0] < 90:
                 self.avoidFrontWall()
@@ -543,15 +543,23 @@ class RobotDrive:
         # self.sendCommand("z")
         # self.sendCommand("z")
         # self.sendCommand("z")
+        
+        # # DEBUG LOOP
+        # while True:
+        #     print(Fore.MAGENTA + f"Sweeping for load at {self.LoadToFDistances}. Diff: {self.LoadToFDistances[0] - self.LoadToFDistances[1]}")
+        #     self.sendCommand("q50")
+        #     time.sleep(0.2)
+        #     self.pingLoadSensors()
+        
         self.sendCommand("r0")
-        TOLERANCE = 70  # mm
-        TURN_DURATION = 50  # ms
+        TOLERANCE = 85  # mm
+        TURN_DURATION = 80  # ms
         SENSOR_LIMIT = 500 # mm
         self.pingLoadSensors()
         lockedOnLoad = False
         while (
             abs(self.LoadToFDistances[0] - self.LoadToFDistances[1]) < TOLERANCE
-            or self.LoadToFDistances[1] > 130
+            or self.LoadToFDistances[1] > 85
             or (self.LoadToFDistances[0] > SENSOR_LIMIT and self.LoadToFDistances[1] > SENSOR_LIMIT)
         ):
             if (
@@ -573,10 +581,10 @@ class RobotDrive:
             if lockedOnLoad:
                 # Inch Forward to Load
                 print(Fore.MAGENTA + f"Approaching load at {self.LoadToFDistances}.")
-                self.sendCommand("f50")
-                time.sleep(0.1)
-                self.sendCommand("d70")
-                time.sleep(0.1)
+                self.sendCommand("f170")
+                time.sleep(0.2)
+                self.sendCommand("d140")
+                time.sleep(0.2)
                 self.pingLoadSensors()
             else:
                 # Sweep for Load
@@ -604,9 +612,9 @@ class RobotDrive:
 
         # Inch forward to block and align block
         for _ in range(10):
-            self.sendCommand("f50")
+            self.sendCommand(f"f{TURN_DURATION}")
             time.sleep(0.1)
-            self.sendCommand("d50")
+            self.sendCommand(f"d{TURN_DURATION}")
             time.sleep(0.1)
 
         # Gripper close and up
@@ -617,7 +625,7 @@ class RobotDrive:
 
         self.sendCommand("x")
         self.sendCommand("x")
-        self.sendCommand("x")
+        # self.sendCommand("x")
 
     def dropLoad(self):
         # GRIPPER PROCEDURE

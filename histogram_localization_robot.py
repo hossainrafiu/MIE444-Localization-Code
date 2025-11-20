@@ -92,7 +92,7 @@ while True:
         robot.dropLoad()
 
     elif val.lower() == "f":
-        robot.obstacleAvoidanceContinuous(200)
+        robot.obstacleAvoidanceContinuous(duration=10000)
         
     elif val.lower() == "f1":
         robot.avoidSideWalls()
