@@ -5,16 +5,18 @@ from colorama import Fore
 
 
 class ClientCommunication:
-    def __init__(self, SER: serial.Serial):
+    def __init__(self, SER: serial.Serial, print_debug: bool = True):
         self.SER = SER
+        self.print_debug = print_debug
 
     # Wrapper functions
     def transmit(self, data):
         """Transmit a command over a serial connection."""
-        print(
-            Fore.WHITE
-            + f"Transmitting {data} at: {datetime.now().strftime('%H:%M:%S:%f')}"
-        )
+        if self.print_debug:
+            print(
+                Fore.WHITE
+                + f"Transmitting {data} at: {datetime.now().strftime('%H:%M:%S:%f')}"
+            )
         self.clear_serial()
         self.SER.write(data.encode("ascii"))
 
@@ -31,11 +33,11 @@ class ClientCommunication:
                 break
             else:
                 response_raw += response_char
-
-        print(
-            Fore.WHITE
-            + f"Raw response was: {response_raw} at {datetime.now().strftime('%H:%M:%S:%f')}"
-        )
+        if self.print_debug:
+            print(
+                Fore.WHITE
+                + f"Raw response was: {response_raw} at {datetime.now().strftime('%H:%M:%S:%f')}"
+            )
 
         # If response received, return it
         if response_raw:
@@ -47,10 +49,11 @@ class ClientCommunication:
         """Wait some time (delay_time) and then clear the serial buffer."""
         if self.SER.in_waiting:
             time.sleep(delay_time)
-            print(
-                Fore.WHITE
-                + f"Clearing Serial... Dumped: {self.SER.read(self.SER.in_waiting)}"
-            )
+            if self.print_debug:
+                print(
+                    Fore.WHITE
+                    + f"Clearing Serial... Dumped: {self.SER.read(self.SER.in_waiting)}"
+                )
 
     # Packetization and validation functions
     def depacketize(self, data_raw: str):

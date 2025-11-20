@@ -12,6 +12,7 @@ from histogram_localization import HistogramLocalization
 from robot_control import RobotDrive
 from pathfinding import PathfindingRobot
 
+SHOW_PLOTS = False
 
 def block_type_detected(readings: list) -> int:
     WALL_THRESHOLD = 180
@@ -31,7 +32,8 @@ def robotMoveForward():
     robot.pingSensors()
     plt.subplot(1, 2, 2)
     plt.cla()
-    robot.plotSensorData(plt=plt)
+    if SHOW_PLOTS:
+        robot.plotSensorData(plt=plt)
 
 
 ############### Initialize ##############
@@ -49,7 +51,7 @@ except serial.SerialException:
 
 ############## Main section for the communication client ##############
 
-clientCommunication = ClientCommunication(SER)
+clientCommunication = ClientCommunication(SER, False)
 robot = RobotDrive(
     clientCommunication.packetize,
     clientCommunication.transmit,
@@ -72,7 +74,8 @@ plt.subplot(1, 2, 1)
 robot.pingSensors()
 localizer.update_belief(block_type_detected(robot.ToFDistancesRaw))
 localizer.print_belief_summary()
-localizer.visualize_belief(plt, False)
+if SHOW_PLOTS:
+    localizer.visualize_belief(plt, False)
 
 while True:
     print(
@@ -90,6 +93,7 @@ while True:
 
     elif val.lower() == "f":
         robot.obstacleAvoidanceContinuous(200)
+        
     elif val.lower() == "f1":
         robot.avoidSideWalls()
     elif val.lower() == "f2":
@@ -99,12 +103,18 @@ while True:
         robot.pingSensors()
         plt.subplot(1, 2, 2)
         plt.cla()
-        robot.plotSensorData(plt=plt)
+        if SHOW_PLOTS:
+            robot.plotSensorData(plt=plt)
+    elif val.lower() == "v":
+        robot.pingLoadSensors()
 
     elif val.lower() == "c":
         robot.centering()
     elif val.lower() == "c1":
         robot.centreinblock()
+    elif val.lower() == "r":
+        robot.simpleParallelize()
+    
     elif val.lower() == "=":
         SER.close()
         print(Fore.WHITE + "Serial connection closed.")
@@ -131,7 +141,8 @@ while True:
         localizer.predict_motion(robot.currentFrontend)
         plt.subplot(1, 2, 1)
         plt.cla()
-        localizer.visualize_belief(plt, False)
+        if SHOW_PLOTS:
+            localizer.visualize_belief(plt, False)
         # Sensor Update
         robot.pingSensors()
         observed_block_type = block_type_detected(robot.ToFDistancesRaw)
@@ -139,7 +150,8 @@ while True:
         localizer.update_belief(int(observed_block_type))
         plt.subplot(1, 2, 1)
         plt.cla()
-        localizer.visualize_belief(plt, False)
+        if SHOW_PLOTS:
+            localizer.visualize_belief(plt, False)
         robot.pauseInCenter = False
 
     else:
