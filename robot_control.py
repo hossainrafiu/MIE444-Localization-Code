@@ -555,6 +555,7 @@ class RobotDrive:
         TOLERANCE = 85  # mm
         TURN_DURATION = 80  # ms
         SENSOR_LIMIT = 500 # mm
+        spin=0
         self.pingLoadSensors()
         lockedOnLoad = False
         while (
@@ -568,6 +569,21 @@ class RobotDrive:
             ):
                 # Found load, trigger lock on
                 print(Fore.MAGENTA + f"Load detected at {self.LoadToFDistances}, locking on.")
+                while(abs(self.LoadToFDistances[0] - self.LoadToFDistances[1]) > TOLERANCE):
+                    self.sendCommand(f"q{TURN_DURATION}")
+                    spin+=1
+                    time.sleep(0.5)
+                    self.pingLoadSensors()
+                    print("correction1")
+                spin=spin/2
+                print(spin)
+                while(spin>0):
+                    self.sendCommand(f"e{TURN_DURATION}")
+                    spin-=1
+                    print("correction2")
+                    time.sleep(0.5)
+                    
+                spin=0
                 lockedOnLoad = True
             elif (
                 abs(self.LoadToFDistances[0] - self.LoadToFDistances[1]) < TOLERANCE
