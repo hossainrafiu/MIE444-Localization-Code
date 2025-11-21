@@ -27,7 +27,7 @@ class PathfindingRobot:
     ]
     
     def __init__(self, pickup_location: Tuple[int, int] = (1, 1), 
-                 dropoff_location: Tuple[int, int] = (3, 7), game_map: List[List[int]] = default_game_map, omnidrive: bool = True):
+                 dropoff_location: Tuple[int, int] = (3, 7), carrying_load=False, game_map: List[List[int]] = None, omnidrive: bool = True):
         """
         Initialize the pathfinding robot.
         
@@ -37,11 +37,11 @@ class PathfindingRobot:
             dropoff_location: (row, col) of dropoff point
             omnidrive: If True, robot can move sideways without rotating
         """
-        self.game_map = game_map
+        self.game_map = game_map if game_map is not None else self.default_game_map
         self.pickup_location = pickup_location
         self.dropoff_location = dropoff_location
         self.omnidrive = omnidrive
-        self.carrying_load = False
+        self.carrying_load = carrying_load
         
     def set_load_status(self, carrying: bool):
         """Set whether the robot is currently carrying a load."""
@@ -226,41 +226,41 @@ class PathfindingRobot:
                                   target[0], target[1])
 
 
-# Example usage
-if __name__ == "__main__":
-    # Example game map
-    game_map = [
-        [2, 1, 5, 2, 4, 3, 4, 3],
-        [1, 2, 4, 2, 5, 0, 5, 1],
-        [5, 4, 3, 4, 4, 5, 4, 5],
-        [2, 5, 1, 5, 5, 2, 4, 3],
-    ]
+# # Example usage
+# if __name__ == "__main__":
+#     # Example game map
+#     game_map = [
+#         [2, 1, 5, 2, 4, 3, 4, 3],
+#         [1, 2, 4, 2, 5, 0, 5, 1],
+#         [5, 4, 3, 4, 4, 5, 4, 5],
+#         [2, 5, 1, 5, 5, 2, 4, 3],
+#     ]
     
-    # Create pathfinding robot
-    robot = PathfindingRobot(
-        game_map=game_map,
-        pickup_location=(1, 1),
-        dropoff_location=(3, 7),
-        omnidrive=False
-    )
+#     # Create pathfinding robot
+#     robot = PathfindingRobot(
+#         game_map=game_map,
+#         pickup_location=(1, 1),
+#         dropoff_location=(3, 7),
+#         omnidrive=False
+#     )
     
-    # Example: robot at position (0,0) facing East, not carrying load
-    current_r, current_c, current_ori = 0, 0, 1
-    robot.set_load_status(False)
+#     # Example: robot at position (0,0) facing East, not carrying load
+#     current_r, current_c, current_ori = 0, 0, 1
+#     robot.set_load_status(False)
     
-    # Get next action towards current objective
-    action, path = robot.get_next_action_to_objective(current_r, current_c, current_ori)
+#     # Get next action towards current objective
+#     action, path = robot.get_next_action_to_objective(current_r, current_c, current_ori)
     
-    print(f"Robot at ({current_r},{current_c}) facing orientation {current_ori}")
-    print(f"Current objective: {robot.get_current_objective()}")
-    print(f"Next action: {action}")
-    if path:
-        print(f"Path length: {len(path)}")
-        print(f"Full path: {path}")
+#     print(f"Robot at ({current_r},{current_c}) facing orientation {current_ori}")
+#     print(f"Current objective: {robot.get_current_objective()}")
+#     print(f"Next action: {action}")
+#     if path:
+#         print(f"Path length: {len(path)}")
+#         print(f"Full path: {path}")
         
-    # Example: Get path to specific target
-    target_r, target_c = 2, 3
-    action2, path2 = robot.get_next_action(current_r, current_c, current_ori, target_r, target_c)
-    print(f"\nPath to ({target_r},{target_c}): {action2}")
-    if path2:
-        print(f"Path: {path2}")
+#     # Example: Get path to specific target
+#     target_r, target_c = 2, 3
+#     action2, path2 = robot.get_next_action(current_r, current_c, current_ori, target_r, target_c)
+#     print(f"\nPath to ({target_r},{target_c}): {action2}")
+#     if path2:
+#         print(f"Path: {path2}")

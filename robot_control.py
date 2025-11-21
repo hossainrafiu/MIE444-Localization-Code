@@ -128,7 +128,7 @@ class RobotDrive:
             if center_after_change:
                 self.performBlockCentering()
             return
-    
+
     def changeSpeeds(self, motor1=0, motor2=0, motor3=0, motor4=0):
         for i, speed in enumerate([motor1, motor2, motor3, motor4]):
             if speed != 0:
@@ -145,7 +145,6 @@ class RobotDrive:
                 break
         if self.verboseConsole:
             print(Fore.BLUE + f"New Motor Speeds: {responses}")
-            
 
     def avoidFrontWall(self):
         # Obstacle detected in front, stop and back up
@@ -254,7 +253,9 @@ class RobotDrive:
             print(Fore.CYAN + "Path clear, moving forward.")
         self.sendCommand(f"f{duration}")
 
-    def obstacleAvoidanceContinuous(self, ping=True, duration=200):
+    def obstacleAvoidanceContinuous(self, ping=True, duration=200, parallelize=False):
+        if parallelize:
+            self.simpleParallelize()
         self.hasPassedCenter = False
         while not (self.hasPassedCenter and self.pauseInCenter):
             if self.verboseConsole:
@@ -414,7 +415,10 @@ class RobotDrive:
         if distance_plus_CW <= min_distance:
             # continue rotating CW
             if self.verboseConsole:
-                print(Fore.GREEN + f"Continuing CW rotation for parallelization. {distance_plus_CW} <= {min_distance}")
+                print(
+                    Fore.GREEN
+                    + f"Continuing CW rotation for parallelization. {distance_plus_CW} <= {min_distance}"
+                )
             while True:
                 self.sendCommand("e100")  # continue CW rotation
                 time.sleep(0.3)
@@ -438,7 +442,10 @@ class RobotDrive:
             )
             # start rotating CCW
             if self.verboseConsole:
-                print(Fore.GREEN + f"Starting CCW rotation for parallelization. {distance_plus_CW} > {min_distance}")
+                print(
+                    Fore.GREEN
+                    + f"Starting CCW rotation for parallelization. {distance_plus_CW} > {min_distance}"
+                )
             self.sendCommand("q100")  # small CCW rotation (back to original + CCW)
             time.sleep(0.3)
             self.pingSensors()
@@ -557,45 +564,69 @@ class RobotDrive:
         self.LoadToFDistances[0] = int(responses[0])
         self.LoadToFDistances[1] = int(responses[1])
 
+    def holdingLoad(self):
+        self.sendCommand("n")
+        start_time = time.time()
+        while time.time() - start_time < self.RESPONSE_TIMEOUT:
+            [responses, time_rx] = self.receive()
+            if responses[0] == "n":
+                continue
+            if responses[0] != "+" and responses[0] is not False:
+                break
+        if self.verboseConsole:
+            print(Fore.BLUE + f"Load Switch Response at {time_rx}: {responses}")
+        if int(responses[0]) == 1:
+            return True
+        else:
+            return False
+
     # Main 2 sensors in line with gripper
-    def detectLoad(self, trueMovements = True):
+    def detectLoad(self, trueMovements=True):
         self.changeSpeeds(motor1=75, motor2=60, motor3=75, motor4=75)
-        
+
         # # DEBUG LOOP
         # while True:
         #     print(Fore.MAGENTA + f"Sweeping for load at {self.LoadToFDistances}. Diff: {self.LoadToFDistances[0] - self.LoadToFDistances[1]}")
         #     self.sendCommand("q50")
         #     time.sleep(0.2)
         #     self.pingLoadSensors()
-        
+
         self.sendCommand("r0")
         TOLERANCE = 85  # mm
-        LOAD_DISTANCE = 85 # mm
-        MIN_LOAD_DISTANCE = 60 # mm
+        LOAD_DISTANCE = 85  # mm
+        MIN_LOAD_DISTANCE = 60  # mm
         TURN_DURATION = 80  # ms
         MOVE_DURATION = 100  # ms
         LONG_MOVE_DURATION = 150  # ms
-        SENSOR_LIMIT = 500 # mm
+        SENSOR_LIMIT = 500  # mm
         self.pingLoadSensors()
         lockedOnLoad = False
         while (
             (self.LoadToFDistances[0] - self.LoadToFDistances[1]) < TOLERANCE
-            or self.LoadToFDistances[1] > LOAD_DISTANCE or self.LoadToFDistances[1] < MIN_LOAD_DISTANCE
-            or (self.LoadToFDistances[0] > SENSOR_LIMIT and self.LoadToFDistances[1] > SENSOR_LIMIT)
+            or self.LoadToFDistances[1] > LOAD_DISTANCE
+            or self.LoadToFDistances[1] < MIN_LOAD_DISTANCE
+            or (
+                self.LoadToFDistances[0] > SENSOR_LIMIT
+                and self.LoadToFDistances[1] > SENSOR_LIMIT
+            )
         ):
             if (
-                (self.LoadToFDistances[0] - self.LoadToFDistances[1]) > TOLERANCE
-                and not lockedOnLoad
-            ):
+                self.LoadToFDistances[0] - self.LoadToFDistances[1]
+            ) > TOLERANCE and not lockedOnLoad:
                 # Found load, trigger lock on
-                print(Fore.MAGENTA + f"Load detected at {self.LoadToFDistances}, locking on.")
+                print(
+                    Fore.MAGENTA
+                    + f"Load detected at {self.LoadToFDistances}, locking on."
+                )
                 lockedOnLoad = True
             elif (
-                (self.LoadToFDistances[0] - self.LoadToFDistances[1]) < TOLERANCE
-                and lockedOnLoad
-            ):
+                self.LoadToFDistances[0] - self.LoadToFDistances[1]
+            ) < TOLERANCE and lockedOnLoad:
                 # Lost Load, hard turn CW and sweep CCW
-                print(Fore.MAGENTA + f"Lost load at {self.LoadToFDistances}, sweeping for load.")
+                print(
+                    Fore.MAGENTA
+                    + f"Lost load at {self.LoadToFDistances}, sweeping for load."
+                )
                 lockedOnLoad = False
                 self.sendCommand(f"e{TURN_DURATION*3}")
                 time.sleep(0.5)
@@ -623,7 +654,10 @@ class RobotDrive:
                     self.pingLoadSensors()
             else:
                 # Sweep for Load
-                print(Fore.MAGENTA + f"Sweeping for load at {self.LoadToFDistances}. Diff: {self.LoadToFDistances[0] - self.LoadToFDistances[1]}")
+                print(
+                    Fore.MAGENTA
+                    + f"Sweeping for load at {self.LoadToFDistances}. Diff: {self.LoadToFDistances[0] - self.LoadToFDistances[1]}"
+                )
                 self.sendCommand(f"q{TURN_DURATION}")
                 time.sleep(0.2)
                 self.pingLoadSensors()
@@ -661,101 +695,30 @@ class RobotDrive:
         time.sleep(0.5)
         self.sendCommand(f"l{servo0}{servo0_up}")
         time.sleep(0.5)
-        
+
         # EMERGENCY FALL BACK
         self.pingLoadSensors()
         if (self.LoadToFDistances[0] - self.LoadToFDistances[1]) > TOLERANCE:
             self.detectLoad()
             return
 
-    # Main 2 sensors in front, 3rd in line with gripper
-    def detectLoadV2(self):
-        self.sendCommand("z")
-        self.sendCommand("z")
-        
-        self.sendCommand("r0")
-        TOLERANCE = 85  # mm
-        LOAD_DISTANCE = 85 # mm
-        TURN_DURATION = 100  # ms
-        SENSOR_LIMIT = 500 # mm
-        self.pingLoadSensors()
-        lockedOnLoad = False
-        while (
-            abs(self.LoadToFDistances[0] - self.LoadToFDistances[1]) < TOLERANCE
-            or self.LoadToFDistances[1] > LOAD_DISTANCE
-            or (self.LoadToFDistances[0] > SENSOR_LIMIT and self.LoadToFDistances[1] > SENSOR_LIMIT)
-        ):
-            if (
-                abs(self.LoadToFDistances[0] - self.LoadToFDistances[1]) > TOLERANCE
-                and not lockedOnLoad
-            ):
-                # Found load, trigger lock on
-                print(Fore.MAGENTA + f"Load detected at {self.LoadToFDistances}, locking on.")
-                lockedOnLoad = True
-            elif (
-                abs(self.LoadToFDistances[0] - self.LoadToFDistances[1]) < TOLERANCE
-                and lockedOnLoad
-            ):
-                # Lost Load, hard turn CW and sweep CCW
-                print(Fore.MAGENTA + f"Lost load at {self.LoadToFDistances}, sweeping for load.")
-                lockedOnLoad = False
-                self.sendCommand("e200")
-                time.sleep(0.5)
-            if lockedOnLoad:
-                # Inch Forward to Load
-                print(Fore.MAGENTA + f"Approaching load at {self.LoadToFDistances}.")
-                self.sendCommand("f150")
-                time.sleep(0.2)
-                self.pingLoadSensors()
-            else:
-                # Sweep for Load
-                print(Fore.MAGENTA + f"Sweeping for load at {self.LoadToFDistances}. Diff: {self.LoadToFDistances[0] - self.LoadToFDistances[1]}")
-                self.sendCommand(f"q{TURN_DURATION}")
-                time.sleep(0.2)
-                self.pingLoadSensors()
-
-        print(Fore.MAGENTA + f"Load in range {self.LoadToFDistances}.")
-        self.sendCommand("q200")
-        while self.LoadToFDistances[2] > LOAD_DISTANCE:
-            self.sendCommand(f"q{TURN_DURATION}")
-        
-        # Gripper open and down
-        servo0, servo0_up, servo0_down = 0, 120, 10
-        servo1, servo1_open, servo1_close = 1, 0, 110
-
-        self.sendCommand(f"l{servo1}{servo1_open}")
-        time.sleep(0.5)
-        self.sendCommand(f"l{servo0}{servo0_down}")
-        time.sleep(0.5)
-
-        # Inch forward to block and align block
-        for _ in range(20):
-            self.sendCommand(f"f{TURN_DURATION}")
-            time.sleep(0.1)
-            self.sendCommand(f"d{TURN_DURATION}")
-            time.sleep(0.1)
-
-        # Gripper close and up
-        self.sendCommand(f"l{servo1}{servo1_close}")
-        time.sleep(0.5)
-        self.sendCommand(f"l{servo0}{servo0_up}")
-        time.sleep(0.5)
-
-        self.sendCommand("x")
-        self.sendCommand("x")
-
-    # Per Block Sweeping # NEEDS IMPLEMENTING IF WANTING TO USE
-    def detectLoadV3(self, currentOrientation):
-        return currentOrientation
-    
-    # Move to center and scan for block # NEEDS IMPLEMENTING IF WANTING TO USE
-    def detectLoadV4(self):
-        return
+    def getToWall(self):
+        MOVE_DURATION = 150  # ms
+        self.pingSensors()
+        # find sensor with the closest wall
+        min_distance = min(self.ToFDistances)
+        min_index = self.ToFDistances.index(min_distance)
+        drive_map = {0: "f", 1: "d", 2: "s", 3: "a"}
+        raw_cmd = drive_map[min_index]
+        while self.ToFDistances[min_index] > 80:
+            self.sendCommand(f"{raw_cmd}{MOVE_DURATION}")
+            time.sleep(0.2)
+            self.pingSensors()
 
     def dropLoad(self):
         self.changeSpeeds(motor1=75, motor2=60, motor3=75, motor4=75)
         self.pingLoadSensors()
-        while(self.LoadToFDistances[1] < 140):
+        while self.LoadToFDistances[1] < 140:
             print(Fore.MAGENTA + f"Clearing drop zone at {self.LoadToFDistances}.")
             self.sendCommand("k80")
             time.sleep(0.5)

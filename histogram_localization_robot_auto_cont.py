@@ -37,11 +37,11 @@ robot = RobotDrive(
 )
 localizer = HistogramLocalization()
 
-load_pick_up_location = [1, 1]  # (row, col)
-unload_drop_off_location = [3, 7]  # (row, col)
+load_pick_up_location = (1, 1)  # (row, col)
+unload_drop_off_location = (3, 7)  # (row, col)
 
 pathfinder = PathfindingRobot(
-    load_pick_up_location, unload_drop_off_location, omnidrive=True
+    load_pick_up_location, unload_drop_off_location, carrying_load=False
 )
 
 
@@ -103,6 +103,7 @@ if RUN_STARTUP_CODE:
     if TRIAL_STARTUP:
         robot.centering()
     reset_histogram_localization()
+    robot.changeSpeeds(motor1=75, motor2=60, motor3=75, motor4=75)
 
 updateHistogram = False
 while True:
@@ -148,13 +149,23 @@ while True:
     if action == "left":
         updateHistogram = robotMoveForward(direction=3)
 
-    ### PROPERLY CHECK CONDITIONS FOR THESE ACTIONS ###
-    if action == "wait":
-        robot.sendCommand("h")
-
-    if action == "pickup" or action == "dropoff" or action == "arrived":
-        # robot.sendCommand("l")
+    if action == "pickup":
+        while robot.holdingLoad() is False:
+            robot.detectLoad()
+        robot.simpleParallelize()
+        robot.getToWall()
+        robot.simpleParallelize()
+        localizer.reset_belief_in_loading_zone()
         pathfinder.set_load_status(True)
+
+    if action == "dropoff":
+        robot.dropLoad()
+
+    if action == "wait":
+        print("PATHFINDER GAVE WAIT COMMAND. ERROR.")
+
+    if action == "arrived":
+        print("PATHFINDER GAVE ARRIVED COMMAND. ERROR.")
 
     ############### Histogram Localization Update ##############
     if updateHistogram:
@@ -174,7 +185,7 @@ while True:
         plt.subplot(1, 2, 1)
         plt.cla()
         localizer.visualize_belief(plt, False)
-        
+
         plt.pause(0.5)
 
         updateHistogram = False
