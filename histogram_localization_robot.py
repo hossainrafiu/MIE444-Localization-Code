@@ -83,7 +83,7 @@ while True:
         + "Commands: 'f' = obstacle avoidance, 'f1' = avoid side walls, 'f2' = hug side walls"
     )
     print(
-        "'l' = load/unload, 'p' = ping sensors, 'u' = update localization, 'us' = ultrasonic sensors, 'c' = centering"
+        "'l' = load/unload, 'p' = ping sensors, 'u' = update localization, 'c' = centering"
     )
     val = input(Fore.CYAN + "Enter command: ")
     if val.lower() == "l":
@@ -154,6 +154,20 @@ while True:
             localizer.visualize_belief(plt, False)
         robot.pauseInCenter = False
 
+    elif val.lower() == "m":
+        robot.changeSpeeds() # Gives current Speeds
+        print("New Speeds:")
+        robot.changeSpeeds(input("Motor1: "), input("Motor2: "), input("Motor3: "), input("Motor4: "))
+    elif val.lower() == "*":
+        try:
+            SER.close()
+            SER = serial.Serial(PORT_SERIAL, BAUDRATE, timeout=TIMEOUT_SERIAL)
+            print(f"Connected to {SOURCE} at {BAUDRATE} bps.")
+            clientCommunication.newSerial(SER)
+        except serial.SerialException:
+            print(
+                f"Serial connection was refused.\nEnsure {PORT_SERIAL} is the correct port and nothing else is connected to it."
+            )
     else:
         print(Fore.MAGENTA + "Sending Command to Robot: " + val)
         robot.sendCommand(val)

@@ -9,6 +9,10 @@ class ClientCommunication:
         self.SER = SER
         self.print_debug = print_debug
 
+    def newSerial(self, SER: serial.Serial):
+        """Update the serial connection."""
+        self.SER = SER
+        
     # Wrapper functions
     def transmit(self, data):
         """Transmit a command over a serial connection."""
