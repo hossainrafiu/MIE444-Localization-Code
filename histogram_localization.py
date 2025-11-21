@@ -61,6 +61,18 @@ class HistogramLocalization:
 
         # Normalize the initial belief
         self.normalize_belief()
+        
+    def reset_belief_in_loading_zone(self):
+        self.belief = np.ones((self.rows, self.cols, self.num_orientations))
+        for i in range(self.rows):
+            for j in range(self.cols):
+                if self.game_map[i, j] == 4:
+                    self.belief[i, j, :] = 0.0
+                elif i < 2 and j < 2:
+                    self.belief[i, j, :] = 100.
+
+        # Normalize belief
+        self.normalize_belief()
 
     def belief_in_loading_zone(self):
         # Loading Zone from (0,0) to (1,1)
