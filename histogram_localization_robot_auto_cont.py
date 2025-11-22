@@ -121,7 +121,7 @@ while True:
         action = ""
 
     print(Fore.CYAN + f"Action decided by pathfinder: {action}")
-    plt.pause(0.5)
+    plt.pause(0.2)
 
     ############### Execute Action ##############
     if action == "":
@@ -150,8 +150,10 @@ while True:
         updateHistogram = robotMoveForward(direction=3)
 
     if action == "pickup":
-        while robot.holdingLoad() is False:
+        didOnce = False
+        while robot.holdingLoad() is False and not didOnce: # Change "and" to "or" to switch holdingLoad check on or off
             robot.detectLoad()
+            didOnce = True
         robot.simpleParallelize()
         robot.getToWall()
         robot.simpleParallelize()
@@ -186,6 +188,6 @@ while True:
         plt.cla()
         localizer.visualize_belief(plt, False)
 
-        plt.pause(0.5)
+        plt.pause(0.2)
 
         updateHistogram = False
