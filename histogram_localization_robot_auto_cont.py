@@ -37,8 +37,8 @@ robot = RobotDrive(
 )
 localizer = HistogramLocalization()
 
-load_pick_up_location = (1, 1)  # (row, col)
-unload_drop_off_location = (3, 7)  # (row, col)
+load_pick_up_location = (0, 1)  # (row, col)
+unload_drop_off_location = (2, 2)  # (row, col)
 
 pathfinder = PathfindingRobot(
     load_pick_up_location, unload_drop_off_location, carrying_load=False
@@ -133,7 +133,7 @@ while True:
             robot.obstacleAvoidanceContinuous()
             updateHistogram = True
         else:
-            newFrontend = (robot.currentFrontend + 1) % 4
+            newFrontend = (robot.currentFrontend + 3) % 4
             robot.changeFrontEnd(newFrontend)
             robot.pingSensors()
 
@@ -153,6 +153,14 @@ while True:
         robot.loadingZoneSequence()
         localizer.reset_belief_in_loading_zone()
         pathfinder.set_load_status(True)
+        # Update Histogram Localization after pickup
+        robot.pingSensors()
+        plt.subplot(1, 2, 2)
+        plt.cla()
+        robot.plotSensorData(plt=plt)
+        block_type = block_type_detected(robot.ToFDistances)
+        print(Fore.MAGENTA + f"Block Type Detected = {block_type}")
+
 
     if action == "dropoff":
         robot.dropLoadV2()

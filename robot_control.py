@@ -597,7 +597,6 @@ class RobotDrive:
         SENSOR_LIMIT = 500  # mm
         self.pingLoadSensors()
         lockedOnLoad = False
-        spin=0
         while (
             (self.LoadToFDistances[0] - self.LoadToFDistances[1]) < TOLERANCE
             or self.LoadToFDistances[1] > LOAD_DISTANCE
@@ -615,21 +614,6 @@ class RobotDrive:
                     Fore.MAGENTA
                     + f"Load detected at {self.LoadToFDistances}, locking on."
                 )
-                while(abs(self.LoadToFDistances[0] - self.LoadToFDistances[1]) > TOLERANCE):
-                    self.sendCommand(f"q{TURN_DURATION}")
-                    spin+=1
-                    time.sleep(0.5)
-                    self.pingLoadSensors()
-                    print("correction1")
-                spin=spin/2
-                print(spin)
-                while(spin>0):
-                    self.sendCommand(f"e{TURN_DURATION}")
-                    spin-=1
-                    print("correction2")
-                    time.sleep(0.5)
-
-                spin=0
                 lockedOnLoad = True
             elif (
                 self.LoadToFDistances[0] - self.LoadToFDistances[1]
@@ -676,6 +660,23 @@ class RobotDrive:
                 self.pingLoadSensors()
         
         print(Fore.MAGENTA + f"Load in range {self.LoadToFDistances}.")
+        
+        # Center on Block
+        spin=0
+        while((self.LoadToFDistances[0] - self.LoadToFDistances[1]) > TOLERANCE):
+            self.sendCommand(f"q{TURN_DURATION/2}")
+            spin+=1
+            time.sleep(0.2)
+            self.pingLoadSensors()
+            print("correction1")
+        spin=spin/2
+        print(spin)
+        while(spin>0):
+            self.sendCommand(f"e{TURN_DURATION/2}")
+            spin-=1
+            print("correction2")
+            time.sleep(0.2)
+        
         # Gripper open and down
         servo0, servo0_up, servo0_down = 0, 120, 10
         servo1, servo1_open, servo1_close = 1, 0, 110
@@ -688,7 +689,7 @@ class RobotDrive:
         # Inch forward to block and align block
         self.sendCommand(f"i{LONG_MOVE_DURATION*2}")
         time.sleep(0.5)
-        for _ in range(10):
+        for _ in range(5):
             self.sendCommand(f"q{TURN_DURATION}")
             time.sleep(0.2)
             self.sendCommand(f"e{TURN_DURATION}")
