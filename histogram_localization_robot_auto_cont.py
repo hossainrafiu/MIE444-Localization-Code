@@ -150,18 +150,12 @@ while True:
         updateHistogram = robotMoveForward(direction=3)
 
     if action == "pickup":
-        didOnce = False
-        while robot.holdingLoad() is False and not didOnce: # Change "and" to "or" to switch holdingLoad check on or off
-            robot.detectLoad()
-            didOnce = True
-        robot.simpleParallelize()
-        robot.getToWall()
-        robot.simpleParallelize()
+        robot.loadingZoneSequence()
         localizer.reset_belief_in_loading_zone()
         pathfinder.set_load_status(True)
 
     if action == "dropoff":
-        robot.dropLoad()
+        robot.dropLoadV2()
 
     if action == "wait":
         print("PATHFINDER GAVE WAIT COMMAND. ERROR.")

@@ -87,17 +87,13 @@ while True:
     )
     val = input(Fore.CYAN + "Enter command: ")
     if val.lower() == "l":
-        # didOnce = False
-        # while robot.holdingLoad() is False and not didOnce: # Change "and" to "or" to switch holdingLoad check on or off
-        #     print(Fore.MAGENTA + "No Load Detected. Attempting to detect load...")
-        #     plt.pause(1)
-        #     robot.detectLoad()
-        #     didOnce = True
-        robot.simpleParallelize()
-        robot.getToWall()
-        robot.simpleParallelize()
+        robot.loadingZoneSequence()
     if val.lower() == "ul":
         robot.dropLoad()
+    if val.lower() == "ul2":
+        robot.dropLoadV2()
+    if val.lower() == "n":
+        robot.holdingLoad()
 
     elif val.lower() == "f":
         robot.obstacleAvoidanceContinuous(duration=10000)
