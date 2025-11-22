@@ -87,10 +87,12 @@ while True:
     )
     val = input(Fore.CYAN + "Enter command: ")
     if val.lower() == "l":
-        didOnce = False
-        while robot.holdingLoad() is False and not didOnce: # Change "and" to "or" to switch holdingLoad check on or off
-            robot.detectLoad()
-            didOnce = True
+        # didOnce = False
+        # while robot.holdingLoad() is False and not didOnce: # Change "and" to "or" to switch holdingLoad check on or off
+        #     print(Fore.MAGENTA + "No Load Detected. Attempting to detect load...")
+        #     plt.pause(1)
+        #     robot.detectLoad()
+        #     didOnce = True
         robot.simpleParallelize()
         robot.getToWall()
         robot.simpleParallelize()

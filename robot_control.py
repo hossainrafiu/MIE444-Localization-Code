@@ -582,7 +582,7 @@ class RobotDrive:
 
     # Main 2 sensors in line with gripper
     def detectLoad(self, trueMovements=True):
-        self.changeSpeeds(motor1=75, motor2=60, motor3=75, motor4=75)
+        self.changeSpeeds(motor1=95, motor2=60, motor3=75, motor4=75)
 
         # # DEBUG LOOP
         # while True:
@@ -635,7 +635,8 @@ class RobotDrive:
                 print(Fore.MAGENTA + f"Approaching load at {self.LoadToFDistances}.")
                 if trueMovements:
                     if self.LoadToFDistances[1] > LOAD_DISTANCE:
-                        self.sendCommand(f"i{LONG_MOVE_DURATION}")
+                        # self.sendCommand(f"i{LONG_MOVE_DURATION}")
+                        self.sendCommand(f"i{self.LoadToFDistances[1]}")
                     elif self.LoadToFDistances[1] < MIN_LOAD_DISTANCE:
                         self.sendCommand(f"k{MOVE_DURATION}")
                     time.sleep(0.2)
@@ -696,12 +697,6 @@ class RobotDrive:
         self.sendCommand(f"l{servo0}{servo0_up}")
         time.sleep(0.5)
 
-        # EMERGENCY FALL BACK
-        self.pingLoadSensors()
-        if (self.LoadToFDistances[0] - self.LoadToFDistances[1]) > TOLERANCE:
-            self.detectLoad()
-            return
-
     def getToWall(self):
         MOVE_DURATION = 150  # ms
         self.pingSensors()
@@ -715,13 +710,14 @@ class RobotDrive:
             time.sleep(0.2)
             self.pingSensors()
 
-    def dropLoad(self, useLoadSensor=True):
+    def dropLoad(self, useLoadSensor=False):
         self.changeSpeeds(motor1=75, motor2=60, motor3=75, motor4=75)
         
         # Omnidrive avoid corner (make not work if facing backwards)
         self.pingLoadSensors()
-        WALL_TRESHOLD = 140
-        while self.LoadToFDistances[1] < WALL_TRESHOLD and useLoadSensor:
+        WALL_THRESHOLD = 140
+        LATERIAL_CLEARANCE = 100
+        while self.LoadToFDistances[1] < WALL_THRESHOLD and useLoadSensor:
             print(Fore.MAGENTA + f"Clearing drop zone at {self.LoadToFDistances}.")
             self.sendCommand("k80")
             time.sleep(0.2)
@@ -730,12 +726,12 @@ class RobotDrive:
         # Laterially avoid corner (currently not checking opposite wall)
         self.pingSensors()
         self.changeFrontEnd(0)
-        while self.ToFDistances[0] < WALL_TRESHOLD and not useLoadSensor:
+        while self.ToFDistances[0] < LATERIAL_CLEARANCE and not useLoadSensor:
             print(Fore.MAGENTA + f"Clearing drop zone at {self.ToFDistances[0]}.")
             self.sendCommand("s80")
             time.sleep(0.2)
             self.pingSensors()
-        while self.ToFDistances[1] < WALL_TRESHOLD and not useLoadSensor:
+        while self.ToFDistances[1] < LATERIAL_CLEARANCE and not useLoadSensor:
             print(Fore.MAGENTA + f"Clearing drop zone at {self.ToFDistances[1]}.")
             self.sendCommand("a80")
             time.sleep(0.2)

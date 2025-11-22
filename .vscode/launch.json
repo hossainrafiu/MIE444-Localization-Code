@@ -10,6 +10,20 @@
             "request": "launch",
             "program": "${file}",
             "console": "integratedTerminal"
+        },
+        {
+            "name": "Python: Histogram Manual",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "C:\\Users\\hossa\\OneDrive - University of Toronto\\Courses\\MIE444\\Labs\\Code\\Control Code\\histogram_localization_robot.py",
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "Python: Histogram Auto",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "C:\\Users\\hossa\\OneDrive - University of Toronto\\Courses\\MIE444\\Labs\\Code\\Control Code\\histogram_localization_robot_auto_cont.py",
+            "console": "integratedTerminal"
         }
     ]
 }
