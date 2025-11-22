@@ -715,14 +715,32 @@ class RobotDrive:
             time.sleep(0.2)
             self.pingSensors()
 
-    def dropLoad(self):
+    def dropLoad(self, useLoadSensor=True):
         self.changeSpeeds(motor1=75, motor2=60, motor3=75, motor4=75)
+        
+        # Omnidrive avoid corner (make not work if facing backwards)
         self.pingLoadSensors()
-        while self.LoadToFDistances[1] < 140:
+        WALL_TRESHOLD = 140
+        while self.LoadToFDistances[1] < WALL_TRESHOLD and useLoadSensor:
             print(Fore.MAGENTA + f"Clearing drop zone at {self.LoadToFDistances}.")
             self.sendCommand("k80")
-            time.sleep(0.5)
+            time.sleep(0.2)
             self.pingLoadSensors()
+        
+        # Laterially avoid corner (currently not checking opposite wall)
+        self.pingSensors()
+        self.changeFrontEnd(0)
+        while self.ToFDistances[0] < WALL_TRESHOLD and not useLoadSensor:
+            print(Fore.MAGENTA + f"Clearing drop zone at {self.ToFDistances[0]}.")
+            self.sendCommand("s80")
+            time.sleep(0.2)
+            self.pingSensors()
+        while self.ToFDistances[1] < WALL_TRESHOLD and not useLoadSensor:
+            print(Fore.MAGENTA + f"Clearing drop zone at {self.ToFDistances[1]}.")
+            self.sendCommand("a80")
+            time.sleep(0.2)
+            self.pingSensors()
+        
         # GRIPPER PROCEDURE
         servo0, servo0_up, servo0_down = 0, 120, 10
         servo1, servo1_open = 1, 0
