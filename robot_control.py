@@ -572,10 +572,12 @@ class RobotDrive:
                     + f"Load detected at {self.LoadToFDistances}, locking on."
                 )
                 self.sendCommand(f"q{TURN_DURATION}")
-                time.sleep(0.1)
+                time.sleep(0.2)
                 self.pingLoadSensors()
                 if self.lastLoadToFDistances[1] < self.LoadToFDistances[1]:
                     self.sendCommand(f"e{TURN_DURATION}")
+                    time.sleep(0.2)
+                    self.pingLoadSensors()
                 lockedOnLoad = True
             elif (
                 self.LoadToFDistances[0] - self.LoadToFDistances[1]
@@ -588,7 +590,7 @@ class RobotDrive:
                 lockedOnLoad = False
                 self.sendCommand(f"e{TURN_DURATION*3}")
                 time.sleep(0.5)
-            if lockedOnLoad:
+            elif lockedOnLoad:
                 # Inch Forward to Load
                 print(Fore.MAGENTA + f"Approaching load at {self.LoadToFDistances}.")
                 duration = MOVE_DURATION
@@ -613,26 +615,28 @@ class RobotDrive:
         print(Fore.MAGENTA + f"Load in range {self.LoadToFDistances}.")
         
         # Center on Block
-        self.sendCommand("e100")
+        time.sleep(1)
+        self.sendCommand("e200")
+        time.sleep(1)
         spin=0
         while((self.LoadToFDistances[0] - self.LoadToFDistances[1]) > TOLERANCE or spin==0):
-            self.sendCommand(f"q{TURN_DURATION/2}")
-            if self.LoadToFDistances[0] - self.LoadToFDistances[1] > TOLERANCE:
-                spin+=1
+            self.sendCommand(f"q{TURN_DURATION//2}")
             time.sleep(0.1)
             self.pingLoadSensors()
-            print("correction1")
+            if self.LoadToFDistances[0] - self.LoadToFDistances[1] > TOLERANCE:
+                spin+=1
+            print(f"spin = {spin}, Load Sensors: {self.LoadToFDistances}")
         spin=spin/2
         print(spin)
         while(spin>0):
-            self.sendCommand(f"e{TURN_DURATION/2}")
+            self.sendCommand(f"e{TURN_DURATION//2}")
             spin-=1
-            print("correction2")
+            print(f"spin = {spin}, Load Sensors: {self.LoadToFDistances}")
             time.sleep(0.1)
         
         # Gripper open and down
         servo0, servo0_up, servo0_down = 0, 120, 10
-        servo1, servo1_open, servo1_close = 1, 0, 110
+        servo1, servo1_open, servo1_close = 1, 0, 170
 
         self.sendCommand(f"l{servo1}{servo1_open}")
         time.sleep(0.5)
@@ -650,7 +654,7 @@ class RobotDrive:
         time.sleep(0.5)
 
     def getToWall(self):
-        MOVE_DURATION = 150  # ms
+        MOVE_DURATION = 200  # ms
         self.pingSensors()
         # find sensor with the closest wall
         min_distance = min(self.ToFDistances)
@@ -662,9 +666,8 @@ class RobotDrive:
             time.sleep(0.2)
             self.pingSensors()
     
-    def loadingZoneSequence(self):
-        didOnce = False
-        while self.holdingLoad() is False or not didOnce: # Change "and" to "or" to switch holdingLoad check on or off
+    def loadingZoneSequence(self, didOnce=False, doOnlyOnce=False):
+        while (not self.holdingLoad() or not didOnce) or (didOnce and doOnlyOnce): # Change "and" to "or" to switch holdingLoad check on or off
             print(Fore.MAGENTA + "No Load Detected. Attempting to detect load...")
             self.detectLoad()
             didOnce = True
@@ -702,8 +705,8 @@ class RobotDrive:
         self.simpleParallelize()
         self.sendCommand("q425")
         time.sleep(0.7)
-        self.sendCommand("k500")
-        time.sleep(0.7)
+        self.sendCommand("k1000")
+        time.sleep(1.5)
         # GRIPPER PROCEDURE
         servo0, servo0_up, servo0_down = 0, 120, 10
         servo1, servo1_open = 1, 0

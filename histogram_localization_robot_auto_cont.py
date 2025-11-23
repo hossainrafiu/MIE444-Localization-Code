@@ -44,6 +44,7 @@ pathfinder = PathfindingRobot(
     load_pick_up_location, unload_drop_off_location, carrying_load=False
 )
 
+start_time = 0
 
 def block_type_detected(readings: list) -> int:
     WALL_THRESHOLD = 180
@@ -104,6 +105,7 @@ if RUN_STARTUP_CODE:
         robot.centering()
     reset_histogram_localization()
     robot.changeSpeeds(motor1=85, motor2=60, motor3=75, motor4=75)
+    start_time = time.time()
 
 updateHistogram = False
 while True:
@@ -121,7 +123,7 @@ while True:
         action = ""
 
     print(Fore.CYAN + f"Action decided by pathfinder: {action}")
-    plt.draw()
+    plt.pause(0.5)
 
     ############### Execute Action ##############
     if action == "":
@@ -158,6 +160,11 @@ while True:
 
     if action == "dropoff":
         robot.dropLoadV2()
+        print(Fore.GREEN + "Load dropped off successfully.")
+        elapsed_time = time.time() - start_time
+        minutes = int(elapsed_time // 60)
+        seconds = int(elapsed_time % 60)
+        print(Fore.GREEN + f"Total Time Elapsed: {minutes} minutes {seconds} seconds")
         while True:
             pass
 
@@ -183,9 +190,9 @@ while True:
         # Update Histogram Localization with Detected Block Type
         localizer.update_belief(block_type)
         plt.subplot(1, 2, 1)
-        plt.cla()
+        plt.clf()
         localizer.visualize_belief(plt, False)
 
-        plt.draw()
+        plt.pause(0.5)
 
         updateHistogram = False

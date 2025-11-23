@@ -87,7 +87,7 @@ while True:
     )
     val = input(Fore.CYAN + "Enter command: ")
     if val.lower() == "l":
-        robot.loadingZoneSequence()
+        robot.loadingZoneSequence(didOnce=True)
     elif val.lower() == "l2":
         robot.pingSensors()
         localizer.reset_belief_in_loading_zone_with_sensors(robot.ToFDistances)
