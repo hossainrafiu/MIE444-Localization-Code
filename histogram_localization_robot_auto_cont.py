@@ -92,7 +92,7 @@ plt.figure(num=1, figsize=(12, 6), clear=True)
 plt.subplot(1, 2, 1)
 
 RUN_STARTUP_CODE = True
-TRIAL_STARTUP = True
+TRIAL_STARTUP = False
 RESET_ARDUINO = False
 
 if RESET_ARDUINO:
@@ -103,7 +103,7 @@ if RUN_STARTUP_CODE:
     if TRIAL_STARTUP:
         robot.centering()
     reset_histogram_localization()
-    robot.changeSpeeds(motor1=75, motor2=60, motor3=75, motor4=75)
+    robot.changeSpeeds(motor1=85, motor2=60, motor3=75, motor4=75)
 
 updateHistogram = False
 while True:
@@ -151,19 +151,15 @@ while True:
 
     if action == "pickup":
         robot.loadingZoneSequence()
-        localizer.reset_belief_in_loading_zone()
-        pathfinder.set_load_status(True)
-        # Update Histogram Localization after pickup
         robot.pingSensors()
-        plt.subplot(1, 2, 2)
-        plt.cla()
-        robot.plotSensorData(plt=plt)
-        block_type = block_type_detected(robot.ToFDistances)
-        print(Fore.MAGENTA + f"Block Type Detected = {block_type}")
+        localizer.reset_belief_in_loading_zone_with_sensors(robot.ToFDistancesRaw)
+        pathfinder.set_load_status(True)
 
 
     if action == "dropoff":
         robot.dropLoadV2()
+        while True:
+            pass
 
     if action == "wait":
         print("PATHFINDER GAVE WAIT COMMAND. ERROR.")

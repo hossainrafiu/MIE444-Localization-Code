@@ -73,6 +73,32 @@ class HistogramLocalization:
 
         # Normalize belief
         self.normalize_belief()
+    
+    def reset_belief_in_loading_zone_with_sensors(self, sensor_readings: list):
+        # Check how many block positions are detected from sensor readings
+        # Determine Orientation based on shifted positions
+        block_position_map = [[[0, 3, 3, 0],[0, 2, 1, 1]],
+                              [[1, 1, 2, 0],[1, 0, 0, 1]]]
+        block_positions_detected = [sensor_readings[i] // 300 for i in range(4)]
+        for row in range(2):
+            for col in range(2):
+                match = False
+                matched_orientation = -1
+                for orientation in range(4):
+                    oriented_block_positions_detected = [
+                        block_positions_detected[(i - orientation) % 4] for i in range(4)
+                    ]
+                    expected_block_pos = block_position_map[row][col]
+                    if oriented_block_positions_detected == expected_block_pos:
+                        match = True
+                        matched_orientation = orientation
+                        break
+                if match and matched_orientation != -1:
+                    # Found matching position and orientation
+                    self.belief = np.ones((self.rows, self.cols, self.num_orientations))
+                    self.belief[row, col, matched_orientation] = 100
+                    self.normalize_belief()
+                    return
 
     def belief_in_loading_zone(self):
         # Loading Zone from (0,0) to (1,1)

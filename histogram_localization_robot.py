@@ -88,11 +88,17 @@ while True:
     val = input(Fore.CYAN + "Enter command: ")
     if val.lower() == "l":
         robot.loadingZoneSequence()
-    if val.lower() == "ul":
+    elif val.lower() == "l2":
+        robot.pingSensors()
+        localizer.reset_belief_in_loading_zone_with_sensors(robot.ToFDistances)
+        plt.subplot(1, 2, 1)
+        plt.cla()
+        localizer.print_belief_summary()
+    elif val.lower() == "ul":
         robot.dropLoad()
-    if val.lower() == "ul2":
+    elif val.lower() == "ul2":
         robot.dropLoadV2()
-    if val.lower() == "n":
+    elif val.lower() == "n":
         robot.holdingLoad()
 
     elif val.lower() == "f":

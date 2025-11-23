@@ -266,6 +266,8 @@ class RobotDrive:
 
             if self.ToFDistances[0] < 110:
                 self.avoidFrontWall()
+                self.hasPassedCenter = True
+                break
 
             if not self.avoidSideWalls():
                 self.hugSideWalls()
@@ -475,8 +477,8 @@ class RobotDrive:
 
     def performBlockCentering(self):
         centered = False
+        [centered, offcenter] = self.centreinblock()
         while not centered:
-            [centered, offcenter] = self.centreinblock()
             if not centered:
                 if offcenter > 0:
                     if self.verboseConsole:
@@ -496,6 +498,9 @@ class RobotDrive:
                     duration = min(abs(offcenter) * 8, 1000)
                     self.sendCommand(f"s{duration}")
                     time.sleep(duration / 1000 + 0.5)
+                [centered, offcenter] = self.centreinblock()
+                if not centered:
+                    self.simpleParallelize()
 
     def centreinblock(self, ping=True):
         if ping:
@@ -584,13 +589,13 @@ class RobotDrive:
             return False
 
     # Main 2 sensors in line with gripper
-    def detectLoad(self, trueMovements=True):
+    def detectLoad(self):
         self.changeSpeeds(motor1=85, motor2=60, motor3=75, motor4=75)
 
         self.sendCommand("r0")
         TOLERANCE = 85  # mm
         LOAD_DISTANCE = 85  # mm
-        MIN_LOAD_DISTANCE = 60  # mm
+        MIN_LOAD_DISTANCE = 70  # mm
         TURN_DURATION = 80  # ms
         MOVE_DURATION = 100  # ms
         LONG_MOVE_DURATION = 150  # ms
@@ -614,6 +619,8 @@ class RobotDrive:
                     Fore.MAGENTA
                     + f"Load detected at {self.LoadToFDistances}, locking on."
                 )
+                self.sendCommand(f"q{TURN_DURATION}")
+                time.sleep(0.1)
                 lockedOnLoad = True
             elif (
                 self.LoadToFDistances[0] - self.LoadToFDistances[1]
@@ -629,26 +636,14 @@ class RobotDrive:
             if lockedOnLoad:
                 # Inch Forward to Load
                 print(Fore.MAGENTA + f"Approaching load at {self.LoadToFDistances}.")
-                if trueMovements:
-                    if self.LoadToFDistances[1] > LOAD_DISTANCE:
-                        # self.sendCommand(f"i{LONG_MOVE_DURATION}")
-                        self.sendCommand(f"i{self.LoadToFDistances[1]*0.7}")
-                    elif self.LoadToFDistances[1] < MIN_LOAD_DISTANCE:
-                        self.sendCommand(f"k{MOVE_DURATION}")
-                    time.sleep(0.2)
-                    self.pingLoadSensors()
-                else:
-                    if self.LoadToFDistances[1] > LOAD_DISTANCE:
-                        self.sendCommand(f"f{MOVE_DURATION}")
-                        time.sleep(0.2)
-                        self.sendCommand(f"d{MOVE_DURATION}")
-                        time.sleep(0.2)
-                    elif self.LoadToFDistances[1] < MIN_LOAD_DISTANCE:
-                        self.sendCommand(f"s{MOVE_DURATION}")
-                        time.sleep(0.2)
-                        self.sendCommand(f"a{MOVE_DURATION}")
-                        time.sleep(0.2)
-                    self.pingLoadSensors()
+                if self.LoadToFDistances[1] > LOAD_DISTANCE:
+                    # self.sendCommand(f"i{LONG_MOVE_DURATION}")
+                    duration = int(self.LoadToFDistances[1]*1.0)
+                    self.sendCommand(f"i{duration}")
+                elif self.LoadToFDistances[1] < MIN_LOAD_DISTANCE:
+                    self.sendCommand(f"k{MOVE_DURATION}")
+                time.sleep(0.5)
+                self.pingLoadSensors()
             else:
                 # Sweep for Load
                 print(
@@ -656,26 +651,26 @@ class RobotDrive:
                     + f"Sweeping for load at {self.LoadToFDistances}. Diff: {self.LoadToFDistances[0] - self.LoadToFDistances[1]}"
                 )
                 self.sendCommand(f"q{TURN_DURATION}")
-                time.sleep(0.2)
+                time.sleep(0.1)
                 self.pingLoadSensors()
         
         print(Fore.MAGENTA + f"Load in range {self.LoadToFDistances}.")
         
-        # Center on Block
-        spin=0
-        while((self.LoadToFDistances[0] - self.LoadToFDistances[1]) > TOLERANCE):
-            self.sendCommand(f"q{TURN_DURATION/2}")
-            spin+=1
-            time.sleep(0.2)
-            self.pingLoadSensors()
-            print("correction1")
-        spin=spin/2
-        print(spin)
-        while(spin>0):
-            self.sendCommand(f"e{TURN_DURATION/2}")
-            spin-=1
-            print("correction2")
-            time.sleep(0.2)
+        # # Center on Block
+        # spin=0
+        # while((self.LoadToFDistances[0] - self.LoadToFDistances[1]) > TOLERANCE):
+        #     self.sendCommand(f"q{TURN_DURATION/2}")
+        #     spin+=1
+        #     time.sleep(0.1)
+        #     self.pingLoadSensors()
+        #     print("correction1")
+        # spin=spin/2
+        # print(spin)
+        # while(spin>0):
+        #     self.sendCommand(f"e{TURN_DURATION/2}")
+        #     spin-=1
+        #     print("correction2")
+        #     time.sleep(0.1)
         
         # Gripper open and down
         servo0, servo0_up, servo0_down = 0, 120, 10
@@ -687,14 +682,7 @@ class RobotDrive:
         time.sleep(0.5)
 
         # Inch forward to block and align block
-        self.sendCommand(f"i{LONG_MOVE_DURATION*2}")
-        time.sleep(0.5)
-        for _ in range(5):
-            self.sendCommand(f"q{TURN_DURATION}")
-            time.sleep(0.2)
-            self.sendCommand(f"e{TURN_DURATION}")
-            time.sleep(0.2)
-        self.sendCommand(f"i{LONG_MOVE_DURATION}")
+        self.sendCommand(f"i{LONG_MOVE_DURATION*3}")
         time.sleep(0.5)
 
         # Gripper close and up
@@ -729,33 +717,7 @@ class RobotDrive:
         self.changeFrontEnd((self.currentFrontend+1)%4)
         self.performBlockCentering()
 
-    def dropLoad(self, useLoadSensor=False):
-        self.changeSpeeds(motor1=75, motor2=60, motor3=75, motor4=75)
-        
-        # Omnidrive avoid corner (make not work if facing backwards)
-        self.pingLoadSensors()
-        WALL_THRESHOLD = 140
-        LATERIAL_CLEARANCE = 100
-        while self.LoadToFDistances[1] < WALL_THRESHOLD and useLoadSensor:
-            print(Fore.MAGENTA + f"Clearing drop zone at {self.LoadToFDistances}.")
-            self.sendCommand("k80")
-            time.sleep(0.2)
-            self.pingLoadSensors()
-        
-        # Laterially avoid corner (currently not checking opposite wall)
-        self.pingSensors()
-        self.changeFrontEnd(0)
-        while self.ToFDistances[0] < LATERIAL_CLEARANCE and not useLoadSensor:
-            print(Fore.MAGENTA + f"Clearing drop zone at {self.ToFDistances[0]}.")
-            self.sendCommand("s80")
-            time.sleep(0.2)
-            self.pingSensors()
-        while self.ToFDistances[1] < LATERIAL_CLEARANCE and not useLoadSensor:
-            print(Fore.MAGENTA + f"Clearing drop zone at {self.ToFDistances[1]}.")
-            self.sendCommand("a80")
-            time.sleep(0.2)
-            self.pingSensors()
-        
+    def dropLoad(self):
         # GRIPPER PROCEDURE
         servo0, servo0_up, servo0_down = 0, 120, 10
         servo1, servo1_open = 1, 0
