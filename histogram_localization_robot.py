@@ -162,7 +162,6 @@ while True:
         plt.cla()
         if SHOW_PLOTS:
             localizer.visualize_belief(plt, False)
-        robot.pauseInCenter = False
 
     elif val.lower() == "m":
         robot.changeSpeeds() # Gives current Speeds

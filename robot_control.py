@@ -8,16 +8,10 @@ class RobotDrive:
     def __init__(self, packetize, transmit, receive):
         self.verboseConsole = True
         self.RESPONSE_TIMEOUT = 6  # seconds
-        self.MOVELEFTWHENPOSSIBLE = False
-        self.MOVERIGHTWHENPOSSIBLE = False
-        self.OMNIWHEELDRIVE = True
         self.packetize = packetize
         self.transmit = transmit
         self.receive = receive
-
-        self.lastUSDistances = [0, 0, 0, 0, 0, 0, 0, 0]
-        self.USDistances = [0, 0, 0, 0, 0, 0, 0, 0]
-        self.USDistancesRaw = [0, 0, 0, 0, 0, 0, 0, 0]
+        
         self.lastToFDistances = [8000, 8000, 8000, 8000]  # front, right, back, left
         self.ToFDistances = [8000, 8000, 8000, 8000]  # front, right, back, left
         self.ToFDistancesRaw = [8000, 8000, 8000, 8000]
@@ -27,10 +21,7 @@ class RobotDrive:
         self.LoadToFDistances = [8000, 8000]  # top, bottom
 
         self.hasPassedCenter = False
-        self.pauseInCenter = True
         self.previousOffset = 0
-
-        self.autoChangeFrontEnd = False
 
     def pingSensors(self, raw_cmd="p", try_again=True):
         packet_tx = self.packetize(raw_cmd)
@@ -46,7 +37,7 @@ class RobotDrive:
         if self.verboseConsole:
             print(Fore.BLUE + f"Sensor Responses at {time_rx}: {responses}")
             # Check validity of responses
-            if len(responses) != (5 if raw_cmd.find("p") != -1 else 9):
+            if len(responses) != 5:
                 if self.verboseConsole:
                     print(Fore.RED + "Invalid sensor response length, trying again.")
                     if try_again:
@@ -54,18 +45,11 @@ class RobotDrive:
                 return
         self.currentFrontend = int(responses[-1])
         # shift responses to match front direction
-        if raw_cmd.find("p") != -1:
-            self.lastToFDistances = self.ToFDistances.copy()
-            for i in range(4):
-                sensor_index = (i - self.currentFrontend) % 4
-                self.ToFDistancesRaw[i] = int(responses[i])
-                self.ToFDistances[sensor_index] = int(responses[i])
-        elif raw_cmd.find("u") != -1:
-            self.lastUSDistances = self.USDistances.copy()
-            for i in range(8):
-                sensor_index = (i - self.currentFrontend) % 8
-                self.USDistancesRaw[i] = int(responses[i])
-                self.USDistances[sensor_index] = int(responses[i])
+        self.lastToFDistances = self.ToFDistances.copy()
+        for i in range(4):
+            sensor_index = (i - self.currentFrontend) % 4
+            self.ToFDistancesRaw[i] = int(responses[i])
+            self.ToFDistances[sensor_index] = int(responses[i])
 
     def sendCommand(self, raw_cmd, timeout=0):
         if timeout == 0:
@@ -151,13 +135,6 @@ class RobotDrive:
         if self.verboseConsole:
             print(Fore.MAGENTA + "Obstacle detected in front, backing up and rotating.")
         self.sendCommand("s100")
-        if self.OMNIWHEELDRIVE and self.autoChangeFrontEnd:
-            if self.ToFDistances[1] < 150:
-                new_front = (self.currentFrontend + 3) % 4
-                self.sendCommand(f"r{new_front}")
-            else:
-                new_front = (self.currentFrontend + 1) % 4
-                self.sendCommand(f"r{new_front}")
 
     def avoidSideWalls(self):
         # Against the wall is 30 mm
@@ -257,7 +234,7 @@ class RobotDrive:
         if parallelize:
             self.simpleParallelize()
         self.hasPassedCenter = False
-        while not (self.hasPassedCenter and self.pauseInCenter):
+        while not self.hasPassedCenter:
             if self.verboseConsole:
                 print(Fore.CYAN + "Starting obstacle avoidance routine...")
 
@@ -276,7 +253,6 @@ class RobotDrive:
                 print(Fore.CYAN + "Path clear, moving forward.")
             self.sendCommand(f"f{duration}")
             # time.sleep(0.1)
-            # self.checkCentering()
             self.centreinblock()
         self.sendCommand("h")
         self.performBlockCentering()
@@ -291,34 +267,11 @@ class RobotDrive:
             sensors.append((-self.ToFDistancesRaw[3] - 75, 0))
         if self.ToFDistancesRaw[1] < 1500:
             sensors.append((self.ToFDistancesRaw[1] + 75, 0))
-        USsensors = []
-        if self.USDistancesRaw[0] > 0:
-            USsensors.append((-self.USDistancesRaw[0], 75))
-        if self.USDistancesRaw[1] > 0:
-            USsensors.append((self.USDistancesRaw[1], 75))
-        if self.USDistancesRaw[2] > 0:
-            USsensors.append((75, self.USDistancesRaw[2]))
-        if self.USDistancesRaw[3] > 0:
-            USsensors.append((75, -self.USDistancesRaw[3]))
-        if self.USDistancesRaw[4] > 0:
-            USsensors.append((self.USDistancesRaw[4], -75))
-        if self.USDistancesRaw[5] > 0:
-            USsensors.append((-self.USDistancesRaw[5], -75))
-        if self.USDistancesRaw[6] > 0:
-            USsensors.append((-75, -self.USDistancesRaw[6]))
-        if self.USDistancesRaw[7] > 0:
-            USsensors.append((-75, self.USDistancesRaw[7]))
         plt.scatter(
             [s[0] for s in sensors],
             [s[1] for s in sensors],
             color="blue",
             label="ToF Sensors",
-        )
-        plt.scatter(
-            [s[0] for s in USsensors],
-            [s[1] for s in USsensors],
-            color="red",
-            label="Ultrasonic Sensors",
         )
         # Plot circle for robot body
         circle = plt.Circle((0, 0), 75, color="gray", fill=False, label="Robot Body")
@@ -541,7 +494,6 @@ class RobotDrive:
             print(Fore.GREEN + "Robot is centered in block!!!")
             return [True, middleDis]
         else:
-            self.pauseInCenter = True
             return [False, middleDis]
 
     def pingLoadSensors(self, try_again=True):
@@ -621,6 +573,9 @@ class RobotDrive:
                 )
                 self.sendCommand(f"q{TURN_DURATION}")
                 time.sleep(0.1)
+                self.pingLoadSensors()
+                if self.lastLoadToFDistances[1] < self.LoadToFDistances[1]:
+                    self.sendCommand(f"e{TURN_DURATION}")
                 lockedOnLoad = True
             elif (
                 self.LoadToFDistances[0] - self.LoadToFDistances[1]
@@ -638,7 +593,7 @@ class RobotDrive:
                 print(Fore.MAGENTA + f"Approaching load at {self.LoadToFDistances}.")
                 if self.LoadToFDistances[1] > LOAD_DISTANCE:
                     # self.sendCommand(f"i{LONG_MOVE_DURATION}")
-                    duration = int(self.LoadToFDistances[1]*1.0)
+                    duration = int(self.LoadToFDistances[1]*0.8)
                     self.sendCommand(f"i{duration}")
                 elif self.LoadToFDistances[1] < MIN_LOAD_DISTANCE:
                     self.sendCommand(f"k{MOVE_DURATION}")
@@ -656,21 +611,23 @@ class RobotDrive:
         
         print(Fore.MAGENTA + f"Load in range {self.LoadToFDistances}.")
         
-        # # Center on Block
-        # spin=0
-        # while((self.LoadToFDistances[0] - self.LoadToFDistances[1]) > TOLERANCE):
-        #     self.sendCommand(f"q{TURN_DURATION/2}")
-        #     spin+=1
-        #     time.sleep(0.1)
-        #     self.pingLoadSensors()
-        #     print("correction1")
-        # spin=spin/2
-        # print(spin)
-        # while(spin>0):
-        #     self.sendCommand(f"e{TURN_DURATION/2}")
-        #     spin-=1
-        #     print("correction2")
-        #     time.sleep(0.1)
+        # Center on Block
+        self.sendCommand("e100")
+        spin=0
+        while((self.LoadToFDistances[0] - self.LoadToFDistances[1]) > TOLERANCE or spin==0):
+            self.sendCommand(f"q{TURN_DURATION/2}")
+            if self.LoadToFDistances[0] - self.LoadToFDistances[1] > TOLERANCE:
+                spin+=1
+            time.sleep(0.1)
+            self.pingLoadSensors()
+            print("correction1")
+        spin=spin/2
+        print(spin)
+        while(spin>0):
+            self.sendCommand(f"e{TURN_DURATION/2}")
+            spin-=1
+            print("correction2")
+            time.sleep(0.1)
         
         # Gripper open and down
         servo0, servo0_up, servo0_down = 0, 120, 10
