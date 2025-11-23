@@ -79,7 +79,7 @@ class HistogramLocalization:
         # Determine Orientation based on shifted positions
         block_position_map = [[[0, 3, 3, 0],[0, 2, 1, 1]],
                               [[1, 1, 2, 0],[1, 0, 0, 1]]]
-        block_positions_detected = [sensor_readings[i] // 300 for i in range(4)]
+        block_positions_detected = [min(sensor_readings[i] // 300, 3) for i in range(4)]
         for row in range(2):
             for col in range(2):
                 match = False
