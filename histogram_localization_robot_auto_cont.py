@@ -121,7 +121,7 @@ while True:
         action = ""
 
     print(Fore.CYAN + f"Action decided by pathfinder: {action}")
-    plt.pause(0.2)
+    plt.draw()
 
     ############### Execute Action ##############
     if action == "":
@@ -186,6 +186,6 @@ while True:
         plt.cla()
         localizer.visualize_belief(plt, False)
 
-        plt.pause(0.2)
+        plt.draw()
 
         updateHistogram = False

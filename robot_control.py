@@ -365,7 +365,7 @@ class RobotDrive:
         # Otherwise if distance starts increases, stop, and start rotating CCW
         # until distance starts increasing, then do a small CW rotation and stop.
         self.sendCommand("e100")  # small CW rotation
-        time.sleep(0.3)
+        time.sleep(0.15)
         self.pingSensors()
         distance_plus_CW = self.ToFDistances[min_index]
         if distance_plus_CW <= min_distance:
@@ -377,7 +377,7 @@ class RobotDrive:
                 )
             while True:
                 self.sendCommand("e100")  # continue CW rotation
-                time.sleep(0.3)
+                time.sleep(0.15)
                 self.pingSensors()
                 new_distance = self.ToFDistances[min_index]
                 if new_distance > distance_plus_CW:
@@ -388,7 +388,7 @@ class RobotDrive:
                             + f"Distance increased: {new_distance}, adjusting with small CCW rotation."
                         )
                     self.sendCommand("q100")  # small CCW rotation
-                    time.sleep(0.3)
+                    time.sleep(0.15)
                     break
                 print(Fore.GREEN + f"Distance decreased: {new_distance}.")
                 distance_plus_CW = new_distance
@@ -403,14 +403,14 @@ class RobotDrive:
                     + f"Starting CCW rotation for parallelization. {distance_plus_CW} > {min_distance}"
                 )
             self.sendCommand("q100")  # small CCW rotation (back to original + CCW)
-            time.sleep(0.3)
+            time.sleep(0.15)
             self.pingSensors()
             distance_plus_CCW = self.ToFDistances[min_index]
             while True:
                 if distance_plus_CCW <= min_distance:
                     # continue rotating CCW
                     self.sendCommand("q100")  # continue CCW rotation
-                    time.sleep(0.3)
+                    time.sleep(0.15)
                     self.pingSensors()
                     new_distance = self.ToFDistances[min_index]
                     if new_distance > distance_plus_CCW:
@@ -421,7 +421,7 @@ class RobotDrive:
                                 + f"Distance increased: {new_distance}, adjusting with small CW rotation."
                             )
                         self.sendCommand("e100")  # small CW rotation
-                        time.sleep(0.3)
+                        time.sleep(0.15)
                         break
                     print(Fore.GREEN + f"Distance decreased: {new_distance}.")
                     distance_plus_CCW = new_distance
@@ -591,13 +591,14 @@ class RobotDrive:
             if lockedOnLoad:
                 # Inch Forward to Load
                 print(Fore.MAGENTA + f"Approaching load at {self.LoadToFDistances}.")
+                duration = MOVE_DURATION
                 if self.LoadToFDistances[1] > LOAD_DISTANCE:
                     # self.sendCommand(f"i{LONG_MOVE_DURATION}")
                     duration = int(self.LoadToFDistances[1]*0.8)
                     self.sendCommand(f"i{duration}")
                 elif self.LoadToFDistances[1] < MIN_LOAD_DISTANCE:
-                    self.sendCommand(f"k{MOVE_DURATION}")
-                time.sleep(0.5)
+                    self.sendCommand(f"k{duration}")
+                time.sleep(duration/1000 + 0.2)
                 self.pingLoadSensors()
             else:
                 # Sweep for Load
