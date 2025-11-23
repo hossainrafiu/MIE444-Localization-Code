@@ -98,6 +98,9 @@ while True:
         robot.dropLoad()
     elif val.lower() == "ul2":
         robot.dropLoadV2()
+    elif val.lower() == "ul3":
+        ori = int(input("Orientation (0-3): "))
+        robot.deload(1, 1, ori, path=[(0,1)])
     elif val.lower() == "n":
         robot.holdingLoad()
 
@@ -167,16 +170,11 @@ while True:
         robot.changeSpeeds() # Gives current Speeds
         print("New Speeds:")
         robot.changeSpeeds(input("Motor1: "), input("Motor2: "), input("Motor3: "), input("Motor4: "))
-    elif val.lower() == "*":
-        try:
-            SER.close()
-            SER = serial.Serial(PORT_SERIAL, BAUDRATE, timeout=TIMEOUT_SERIAL)
-            print(f"Connected to {SOURCE} at {BAUDRATE} bps.")
-            clientCommunication.newSerial(SER)
-        except serial.SerialException:
-            print(
-                f"Serial connection was refused.\nEnsure {PORT_SERIAL} is the correct port and nothing else is connected to it."
-            )
+    elif val.lower() == "b":
+        current_frontend = robot.currentFrontend
+        robot.sendCommand("b")  # Resets Arduino
+        plt.pause(5)  # Wait for Arduino to reset
+        robot.sendCommand(f"r{current_frontend}")  # Restore front end
     else:
         print(Fore.MAGENTA + "Sending Command to Robot: " + val)
         robot.sendCommand(val)

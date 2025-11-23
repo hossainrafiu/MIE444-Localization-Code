@@ -38,10 +38,11 @@ robot = RobotDrive(
 localizer = HistogramLocalization()
 
 load_pick_up_location = (0, 1)  # (row, col)
+with_load = False
 unload_drop_off_location = (2, 2)  # (row, col)
 
 pathfinder = PathfindingRobot(
-    load_pick_up_location, unload_drop_off_location, carrying_load=False
+    load_pick_up_location, unload_drop_off_location, carrying_load=with_load
 )
 
 start_time = 0
@@ -93,18 +94,21 @@ plt.figure(num=1, figsize=(12, 6), clear=True)
 plt.subplot(1, 2, 1)
 
 RUN_STARTUP_CODE = True
-TRIAL_STARTUP = False
+TRIAL_STARTUP = True
 RESET_ARDUINO = False
 
 if RESET_ARDUINO:
-    robot.sendCommand("v")  # Resets Arduino
+    robot.sendCommand("b")  # Resets Arduino
     time.sleep(5)  # Wait for Arduino to reset
 
 if RUN_STARTUP_CODE:
-    if TRIAL_STARTUP:
+    if TRIAL_STARTUP and not with_load:
         robot.centering()
     reset_histogram_localization()
     robot.changeSpeeds(motor1=85, motor2=60, motor3=75, motor4=75)
+    if TRIAL_STARTUP and with_load:
+        robot.pingSensors()
+        localizer.reset_belief_in_loading_zone_with_sensors(robot.ToFDistancesRaw)
     start_time = time.time()
 
 updateHistogram = False
@@ -121,6 +125,7 @@ while True:
         )
     else:
         action = ""
+        path = []
 
     print(Fore.CYAN + f"Action decided by pathfinder: {action}")
     plt.pause(0.5)
@@ -138,41 +143,46 @@ while True:
             newFrontend = (robot.currentFrontend + 3) % 4
             robot.changeFrontEnd(newFrontend)
             robot.pingSensors()
-
-    if action == "forward":
-        updateHistogram = robotMoveForward(direction=0)
-
-    if action == "right":
-        updateHistogram = robotMoveForward(direction=1)
-
-    if action == "backward":
-        updateHistogram = robotMoveForward(direction=2)
-
-    if action == "left":
-        updateHistogram = robotMoveForward(direction=3)
-
-    if action == "pickup":
-        robot.loadingZoneSequence()
-        robot.pingSensors()
-        localizer.reset_belief_in_loading_zone_with_sensors(robot.ToFDistancesRaw)
-        pathfinder.set_load_status(True)
-
-
-    if action == "dropoff":
-        robot.dropLoadV2()
-        print(Fore.GREEN + "Load dropped off successfully.")
-        elapsed_time = time.time() - start_time
-        minutes = int(elapsed_time // 60)
-        seconds = int(elapsed_time % 60)
-        print(Fore.GREEN + f"Total Time Elapsed: {minutes} minutes {seconds} seconds")
+    if (len(path)==2 and robot.holdingLoad()):
+        robot.deload(current_r,current_c,current_ori,path)
         while True:
             pass
+    else:
+        if action == "forward":
+            updateHistogram = robotMoveForward(direction=0)
 
-    if action == "wait":
-        print("PATHFINDER GAVE WAIT COMMAND. ERROR.")
+        if action == "right":
+            updateHistogram = robotMoveForward(direction=1)
 
-    if action == "arrived":
-        print("PATHFINDER GAVE ARRIVED COMMAND. ERROR.")
+        if action == "backward":
+            updateHistogram = robotMoveForward(direction=2)
+
+        if action == "left":
+            updateHistogram = robotMoveForward(direction=3)
+
+        if action == "pickup":
+            robot.loadingZoneSequence()
+            robot.pingSensors()
+            localizer.reset_belief_in_loading_zone_with_sensors(robot.ToFDistancesRaw)
+            with_load = True
+            pathfinder.set_load_status(True)
+
+
+        if action == "dropoff":
+            robot.dropLoadV2()
+            print(Fore.GREEN + "Load dropped off successfully.")
+            elapsed_time = time.time() - start_time
+            minutes = int(elapsed_time // 60)
+            seconds = int(elapsed_time % 60)
+            print(Fore.GREEN + f"Total Time Elapsed: {minutes} minutes {seconds} seconds")
+            while True:
+                pass
+
+        if action == "wait":
+            print("PATHFINDER GAVE WAIT COMMAND. ERROR.")
+
+        if action == "arrived":
+            print("PATHFINDER GAVE ARRIVED COMMAND. ERROR.")
 
     ############### Histogram Localization Update ##############
     if updateHistogram:
