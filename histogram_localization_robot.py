@@ -100,7 +100,7 @@ while True:
         robot.dropLoadV2()
     elif val.lower() == "ul3":
         ori = int(input("Orientation (0-3): "))
-        robot.deload(1, 1, ori, path=[(0,1)])
+        robot.deload(3, 2, 2, path=[(3,2), (2,2)])
     elif val.lower() == "n":
         robot.holdingLoad()
 

@@ -39,7 +39,7 @@ localizer = HistogramLocalization()
 
 load_pick_up_location = (0, 1)  # (row, col)
 with_load = False
-unload_drop_off_location = (2, 2)  # (row, col)
+unload_drop_off_location = (0, 5)  # (row, col)
 
 pathfinder = PathfindingRobot(
     load_pick_up_location, unload_drop_off_location, carrying_load=with_load
@@ -102,6 +102,7 @@ if RESET_ARDUINO:
     time.sleep(5)  # Wait for Arduino to reset
 
 if RUN_STARTUP_CODE:
+    robot.sendCommand("r0")
     if TRIAL_STARTUP and not with_load:
         robot.centering()
     reset_histogram_localization()
@@ -143,8 +144,13 @@ while True:
             newFrontend = (robot.currentFrontend + 3) % 4
             robot.changeFrontEnd(newFrontend)
             robot.pingSensors()
-    if (len(path)==2 and robot.holdingLoad()):
+    if (len(path)==2 and with_load):
         robot.deload(current_r,current_c,current_ori,path)
+        print(Fore.GREEN + "Load dropped off successfully.")
+        elapsed_time = time.time() - start_time
+        minutes = int(elapsed_time // 60)
+        seconds = int(elapsed_time % 60)
+        print(Fore.GREEN + f"Total Time Elapsed: {minutes} minutes {seconds} seconds")
         while True:
             pass
     else:

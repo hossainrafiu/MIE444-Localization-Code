@@ -732,9 +732,9 @@ class RobotDrive:
     
     def deload(self,current_r,current_c,current_ori,path):
         self.changeSpeeds(85,60,75,75)
-        diff_r=current_r-path[0][0]
-        diff_c=current_c-path[0][1]
-        durration=425
+        diff_r=current_r-path[-1][0]
+        diff_c=current_c-path[-1][1]
+        durration=450
         durration3=380*3
         starting_ang=0
         target_ang=0
@@ -770,8 +770,8 @@ class RobotDrive:
             self.sendCommand(f"e{durration}") # may need to change this to a custom value for each angle
             time.sleep(1)
 
-        self.sendCommand("i1000")
-        time.sleep(2)
+        self.sendCommand("i600")
+        time.sleep(1)
         servo0, servo0_up, servo0_down = 0, 125, 10
         servo1, servo1_open = 1, 0
 
