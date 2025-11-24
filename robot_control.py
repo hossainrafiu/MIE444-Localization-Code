@@ -653,7 +653,7 @@ class RobotDrive:
 
         # Gripper open and down
         servo0, servo0_up, servo0_down = 0, 125, 10
-        servo1, servo1_open, servo1_close = 1, 0, 170
+        servo1, servo1_open, servo1_close = 1, 0, 175
 
         self.sendCommand(f"l{servo1}{servo1_open}")
         time.sleep(0.5)
