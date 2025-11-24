@@ -39,7 +39,7 @@ localizer = HistogramLocalization()
 
 load_pick_up_location = (0, 1)  # (row, col)
 with_load = False
-unload_drop_off_location = (0, 5)  # (row, col)
+unload_drop_off_location = (0, 7)  # (row, col)
 
 pathfinder = PathfindingRobot(
     load_pick_up_location, unload_drop_off_location, carrying_load=with_load
