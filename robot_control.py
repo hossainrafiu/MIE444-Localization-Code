@@ -768,18 +768,24 @@ class RobotDrive:
         elif diff_r == -1:
             target_ang = -90
         change = target_ang - starting_ang + 45
+        # Target Up = 90
+        # Orientations: 0: 90 ; 1: 0 ; 2: -90 ; 3: 180
+        # Changes: 0: 45 ; 1: 135 ; 2: 225 ; 3: -45
+        # Target Down = -90
+        # Orientations: 0: 90 ; 1: 0 ; 2: -90 ; 3: 180
+        # Changes: 0: -135 ; 1: -45 ; 2: 45 ; 3: -225
         print(change)
         if change == 45:
             self.sendCommand(
                 f"q{durration}"
             )  # may need to change this to a custom value for each angle
             time.sleep(1)
-        elif change == 135:
+        elif change == 135 or change == -225:
             self.sendCommand(
                 f"q{durration3}"
             )  # may need to change this to a custom value for each angle
             time.sleep(1.5)
-        elif change == 225:
+        elif change == 225 or change == -135:
             self.sendCommand(
                 f"e{durration3}"
             )  # may need to change this to a custom value for each angle
