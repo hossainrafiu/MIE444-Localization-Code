@@ -11,7 +11,7 @@ class RobotDrive:
         self.packetize = packetize
         self.transmit = transmit
         self.receive = receive
-        
+
         self.lastToFDistances = [8000, 8000, 8000, 8000]  # front, right, back, left
         self.ToFDistances = [8000, 8000, 8000, 8000]  # front, right, back, left
         self.ToFDistancesRaw = [8000, 8000, 8000, 8000]
@@ -45,7 +45,7 @@ class RobotDrive:
                 return
         self.currentFrontend = int(responses[-1])
         if reset and any([int(dis) > 60000 for dis in responses[:4]]):
-            self.sendCommand("b") # Resets Arduino
+            self.sendCommand("b")  # Resets Arduino
             time.sleep(5)  # Wait for Arduino to reset
             self.sendCommand(f"r{self.currentFrontend}")  # Restore front end
             self.pingSensors(raw_cmd, try_again=True, reset=False)
@@ -436,6 +436,7 @@ class RobotDrive:
 
     def performBlockCentering(self):
         centered = False
+        centering_attempts = 0
         [centered, offcenter] = self.centreinblock()
         while not centered:
             if not centered:
@@ -457,6 +458,9 @@ class RobotDrive:
                     duration = min(abs(offcenter) * 8, 1000)
                     self.sendCommand(f"s{duration}")
                     time.sleep(duration / 1000 + 0.5)
+                centering_attempts += 1
+                if centering_attempts > 2:
+                    return
                 [centered, offcenter] = self.centreinblock()
                 if not centered:
                     self.simpleParallelize()
@@ -525,7 +529,7 @@ class RobotDrive:
                         self.pingSensors(raw_cmd, try_again=False)
                 return
         if reset and (int(responses[0]) > 60000 or int(responses[1]) == 0):
-            self.sendCommand("b") # Resets Arduino
+            self.sendCommand("b")  # Resets Arduino
             time.sleep(5)  # Wait for Arduino to reset
             self.pingLoadSensors(try_again=True, reset=False)
             return
@@ -607,11 +611,11 @@ class RobotDrive:
                 duration = MOVE_DURATION
                 if self.LoadToFDistances[1] > LOAD_DISTANCE:
                     # self.sendCommand(f"i{LONG_MOVE_DURATION}")
-                    duration = int(self.LoadToFDistances[1]*0.8)
+                    duration = int(self.LoadToFDistances[1] * 0.8)
                     self.sendCommand(f"i{duration}")
                 elif self.LoadToFDistances[1] < MIN_LOAD_DISTANCE:
                     self.sendCommand(f"k{duration}")
-                time.sleep(duration/1000*2)
+                time.sleep(duration / 1000 * 2)
                 self.pingLoadSensors()
             else:
                 # Sweep for Load
@@ -622,29 +626,31 @@ class RobotDrive:
                 self.sendCommand(f"q{TURN_DURATION}")
                 time.sleep(0.1)
                 self.pingLoadSensors()
-        
+
         print(Fore.MAGENTA + f"Load in range {self.LoadToFDistances}.")
-        
+
         # Center on Block
         time.sleep(1)
         self.sendCommand("e200")
         time.sleep(1)
-        spin=0
-        while((self.LoadToFDistances[0] - self.LoadToFDistances[1]) > TOLERANCE or spin==0):
+        spin = 0
+        while (
+            self.LoadToFDistances[0] - self.LoadToFDistances[1]
+        ) > TOLERANCE or spin == 0:
             self.sendCommand(f"q{TURN_DURATION//2}")
             time.sleep(0.1)
             self.pingLoadSensors()
             if self.LoadToFDistances[0] - self.LoadToFDistances[1] > TOLERANCE:
-                spin+=1
+                spin += 1
             print(f"spin = {spin}, Load Sensors: {self.LoadToFDistances}")
-        spin=spin/2
+        spin = spin / 2
         print(spin)
-        while(spin>0):
+        while spin > 0:
             self.sendCommand(f"e{TURN_DURATION//2}")
-            spin-=1
+            spin -= 1
             print(f"spin = {spin}, Load Sensors: {self.LoadToFDistances}")
             time.sleep(0.1)
-        
+
         # Gripper open and down
         servo0, servo0_up, servo0_down = 0, 125, 10
         servo1, servo1_open, servo1_close = 1, 0, 170
@@ -677,9 +683,11 @@ class RobotDrive:
             self.sendCommand(f"{raw_cmd}{MOVE_DURATION}")
             time.sleep(0.2)
             self.pingSensors()
-    
+
     def loadingZoneSequence(self, didOnce=False, doOnlyOnce=False):
-        while (not self.holdingLoad() or not didOnce) or (didOnce and doOnlyOnce): # Change "and" to "or" to switch holdingLoad check on or off
+        while (not self.holdingLoad() or not didOnce) or (
+            didOnce and doOnlyOnce
+        ):  # Change "and" to "or" to switch holdingLoad check on or off
             print(Fore.MAGENTA + "No Load Detected. Attempting to detect load...")
             self.detectLoad()
             didOnce = True
@@ -687,7 +695,7 @@ class RobotDrive:
         self.getToWall()
         self.simpleParallelize()
         self.performBlockCentering()
-        self.changeFrontEnd((self.currentFrontend+1)%4)
+        self.changeFrontEnd((self.currentFrontend + 1) % 4)
         self.performBlockCentering()
 
     def dropLoad(self):
@@ -706,11 +714,15 @@ class RobotDrive:
         self.changeSpeeds(motor1=85, motor2=60, motor3=75, motor4=75)
         self.pingSensors()
         WALL_THRESHOLD = 120
-        while (self.ToFDistancesRaw[0] > WALL_THRESHOLD 
-               or self.ToFDistancesRaw[1] > WALL_THRESHOLD 
-               or self.ToFDistancesRaw[3] > WALL_THRESHOLD 
-               or self.ToFDistancesRaw[2] < WALL_THRESHOLD):
-            print(Fore.MAGENTA + f"Facing loading zone, distance: {self.ToFDistancesRaw}.")
+        while (
+            self.ToFDistancesRaw[0] > WALL_THRESHOLD
+            or self.ToFDistancesRaw[1] > WALL_THRESHOLD
+            or self.ToFDistancesRaw[3] > WALL_THRESHOLD
+            or self.ToFDistancesRaw[2] < WALL_THRESHOLD
+        ):
+            print(
+                Fore.MAGENTA + f"Facing loading zone, distance: {self.ToFDistancesRaw}."
+            )
             self.sendCommand("e100")
             time.sleep(0.2)
             self.pingSensors()
@@ -729,45 +741,53 @@ class RobotDrive:
         time.sleep(0.5)
         self.sendCommand(f"l{servo0}{servo0_up}")
         time.sleep(0.5)
-    
-    def deload(self,current_r,current_c,current_ori,path):
-        self.changeSpeeds(85,60,75,75)
-        diff_r=current_r-path[-1][0]
-        diff_c=current_c-path[-1][1]
-        durration=450
-        durration3=380*3
-        starting_ang=0
-        target_ang=0
+
+    def deload(self, current_r, current_c, current_ori, path):
+        self.changeSpeeds(85, 60, 75, 75)
+        diff_r = current_r - path[-1][0]
+        diff_c = current_c - path[-1][1]
+        durration = 450
+        durration3 = 380 * 3
+        starting_ang = 0
+        target_ang = 0
         print(current_ori)
-        if(current_ori==0):
-            starting_ang=90
-        elif(current_ori==1):
-            starting_ang=0
-        elif(current_ori==2):
-            starting_ang=-90
+        if current_ori == 0:
+            starting_ang = 90
+        elif current_ori == 1:
+            starting_ang = 0
+        elif current_ori == 2:
+            starting_ang = -90
         else:
-            starting_ang=180
-        if(diff_c==1):
-            target_ang=0
-        elif(diff_c==-1):
-            target_ang=180
-        elif(diff_r==1):
-            target_ang=90
-        elif(diff_r==-1):
-            target_ang=-90
-        change=target_ang-starting_ang+45
+            starting_ang = 180
+        if diff_c == 1:
+            target_ang = 0
+        elif diff_c == -1:
+            target_ang = 180
+        elif diff_r == 1:
+            target_ang = 90
+        elif diff_r == -1:
+            target_ang = -90
+        change = target_ang - starting_ang + 45
         print(change)
-        if(change==45):
-            self.sendCommand(f"q{durration}") # may need to change this to a custom value for each angle
+        if change == 45:
+            self.sendCommand(
+                f"q{durration}"
+            )  # may need to change this to a custom value for each angle
             time.sleep(1)
-        elif(change==135):
-            self.sendCommand(f"q{durration3}") # may need to change this to a custom value for each angle
+        elif change == 135:
+            self.sendCommand(
+                f"q{durration3}"
+            )  # may need to change this to a custom value for each angle
             time.sleep(1.5)
-        elif(change==225):
-            self.sendCommand(f"e{durration3}") # may need to change this to a custom value for each angle
+        elif change == 225:
+            self.sendCommand(
+                f"e{durration3}"
+            )  # may need to change this to a custom value for each angle
             time.sleep(1.5)
         else:
-            self.sendCommand(f"e{durration}") # may need to change this to a custom value for each angle
+            self.sendCommand(
+                f"e{durration}"
+            )  # may need to change this to a custom value for each angle
             time.sleep(1)
 
         self.sendCommand("i600")
